@@ -1,0 +1,25 @@
+# Сборка
+build/
+cmake-build-*/
+compile_commands.json
+CMakeCache.txt
+CMakeFiles/
+*.o
+*.obj
+*.a
+*.so
+*.exe
+*.pdb
+*.ilk
+
+# Служебное
+.vscode/
+.idea/
+__pycache__/
+*.pyc
+.DS_Store
+
+# ПЕРСОНАЛЬНЫЕ ДАННЫЕ — никогда (ПРАВИЛО №1)
+*.csv
+*.xlsx
+*.xls
