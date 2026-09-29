@@ -1,0 +1,2705 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Граф требований defi-risk-engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Схема требований: шаги процесса, требования и риски в трёх слоях.
+   Данные вписывает ноутбук risk-map.ipynb между метками GRAPH-DATA. */
+:root {
+  color-scheme: light;
+  --bg: #eef1f4;
+  --panel: #ffffff;
+  --ink: #121820;
+  --muted: #5a6573;
+  --line: #d3d9e0;
+  --accent: #2a5bd7;
+  --on-accent: #ffffff;
+  --step: #c9d1db;
+  --g-mode: #2a78d6; --g-pos: #eb6834; --g-data: #1baf7a; --g-risk: #4a3aa7;
+  --g-dec: #e87ba4; --g-exec: #eda100; --g-out: #008300;
+  --z-low: #0ca30c; --z-mid: #fab219; --z-high: #d03b3b;
+  --sans: "IBM Plex Sans", system-ui, "Segoe UI", Roboto, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, "Courier New", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0e1217; --panel: #161b22; --ink: #e6eaef; --muted: #9aa5b2; --line: #2a323c;
+    --accent: #7aa2ff; --on-accent: #0e1217; --step: #3a4450;
+    --g-mode: #3987e5; --g-pos: #d95926; --g-data: #199e70; --g-risk: #9085e9;
+    --g-dec: #d55181; --g-exec: #c98500; --g-out: #008300;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0e1217; --panel: #161b22; --ink: #e6eaef; --muted: #9aa5b2; --line: #2a323c;
+  --accent: #7aa2ff; --on-accent: #0e1217; --step: #3a4450;
+  --g-mode: #3987e5; --g-pos: #d95926; --g-data: #199e70; --g-risk: #9085e9;
+  --g-dec: #d55181; --g-exec: #c98500; --g-out: #008300;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: var(--bg); color: var(--ink); font: 14px/1.45 var(--sans);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+header {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px;
+  padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--line);
+}
+header h1 { font-size: 15px; font-weight: 600; margin: 0 8px 0 0; text-wrap: balance; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+button, .btn {
+  font: 500 13px/1 var(--sans); color: var(--ink); background: transparent;
+  border: 0; padding: 8px 11px; cursor: pointer;
+}
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); }
+.solo { border: 1px solid var(--line); border-radius: 6px; }
+.solo[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+button:focus-visible, input:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px;
+}
+input[type="search"] {
+  font: 13px var(--mono); color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 190px;
+}
+details.filters { position: relative; }
+details.filters summary {
+  list-style: none; cursor: pointer; font-weight: 500; font-size: 13px;
+  border: 1px solid var(--line); border-radius: 6px; padding: 7px 11px;
+}
+details.filters summary::-webkit-details-marker { display: none; }
+.filter-box {
+  position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; width: 280px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+  padding: 12px; display: grid; gap: 10px; box-shadow: 0 8px 24px rgb(0 0 0 / .18);
+}
+.filter-box fieldset { border: 0; margin: 0; padding: 0; display: grid; gap: 4px; }
+.filter-box legend { font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+.filter-box label { display: flex; align-items: center; gap: 7px; font-size: 13px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex: none; }
+main { flex: 1; min-height: 0; display: flex; }
+#stage { position: relative; flex: 1; min-width: 0; }
+#stage canvas { display: block; }
+#labels { position: absolute; inset: 0; pointer-events: none; }
+.lbl {
+  font: 500 11px/1 var(--mono); color: var(--ink); background: color-mix(in srgb, var(--panel) 82%, transparent);
+  padding: 2px 4px; border-radius: 3px; white-space: nowrap;
+}
+.lbl.step { font: 600 12px/1.2 var(--sans); padding: 4px 7px; border: 1px solid var(--line); white-space: normal; max-width: 118px; text-align: center; }
+.lbl.step b { font-family: var(--mono); margin-right: 5px; }
+.lbl.layer { background: none; color: var(--muted); font: 600 11px var(--sans); letter-spacing: .08em; text-transform: uppercase; }
+.lbl.flow { background: none; color: var(--muted); font: 11px var(--sans); }
+#tip {
+  position: absolute; z-index: 10; pointer-events: none; max-width: 300px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+  padding: 7px 9px; font-size: 12.5px; box-shadow: 0 6px 18px rgb(0 0 0 / .15);
+}
+#tip code { font: 500 12px var(--mono); }
+#tip .sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.legend {
+  position: absolute; left: 16px; bottom: 16px; z-index: 5;
+  background: color-mix(in srgb, var(--panel) 90%, transparent); border: 1px solid var(--line);
+  border-radius: 8px; padding: 9px 11px; display: grid; gap: 5px; font-size: 12px; color: var(--muted);
+}
+.legend div { display: flex; align-items: center; gap: 8px; }
+.legend svg { flex: none; }
+aside {
+  width: 380px; flex: none; overflow-y: auto; background: var(--panel);
+  border-left: 1px solid var(--line); padding: 16px; display: grid; align-content: start; gap: 14px;
+}
+aside h2 { font-size: 16px; margin: 0; line-height: 1.3; text-wrap: balance; }
+aside h2 code { display: block; font: 500 13px var(--mono); color: var(--muted); margin-bottom: 3px; }
+aside h3 { font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin: 0 0 6px; }
+aside p { margin: 0; max-width: 65ch; }
+.text { white-space: pre-line; }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; }
+.badge { font-size: 12px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; display: inline-flex; align-items: center; gap: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  font: 500 12px var(--mono); border: 1px solid var(--line); border-radius: 5px;
+  padding: 4px 7px; background: var(--bg); color: var(--ink);
+}
+.chip:hover { border-color: var(--accent); }
+.chip .t { font-family: var(--sans); font-weight: 400; color: var(--muted); margin-left: 5px; }
+.muted { color: var(--muted); }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stats div { border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+.stats b { display: block; font: 600 18px var(--mono); font-variant-numeric: tabular-nums; }
+.stats span { font-size: 12px; color: var(--muted); }
+.note { font-size: 12px; color: var(--muted); }
+#empty { padding: 24px; }
+@media (max-width: 820px) {
+  main { flex-direction: column; }
+  #stage { min-height: 58vh; }
+  aside { width: auto; border-left: 0; border-top: 1px solid var(--line); max-height: 42vh; }
+  .legend { display: none; }
+  input[type="search"] { width: 150px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+} }
+</script>
+</head>
+<body>
+<header>
+  <h1>Граф требований</h1>
+  <div class="seg" role="group" aria-label="Схема">
+    <button id="m-process" data-mode="process" aria-pressed="true">Процесс</button>
+    <button id="m-links" data-mode="links" aria-pressed="false">Связи требований</button>
+  </div>
+  <div class="seg" id="views" role="group" aria-label="Вид">
+    <button id="v-3d" data-view="3d" aria-pressed="true">3D</button>
+    <button id="v-side" data-view="side" aria-pressed="false">Сбоку</button>
+    <button id="v-top" data-view="top" aria-pressed="false">Сверху</button>
+  </div>
+  <div class="seg" id="depth" role="group" aria-label="Глубина связей" hidden>
+    <button id="d-1" data-depth="1" aria-pressed="true">Глубина 1</button>
+    <button id="d-2" data-depth="2" aria-pressed="false">2</button>
+  </div>
+  <button id="play" class="solo" aria-pressed="false">▶ Проиграть цикл</button>
+  <button id="labels-all" class="solo" aria-pressed="false">Все подписи</button>
+  <input id="search" type="search" list="ids" placeholder="FR-RISK-07, RS-01, S6" aria-label="Найти по номеру">
+  <datalist id="ids"></datalist>
+  <details class="filters">
+    <summary>Фильтры</summary>
+    <div class="filter-box">
+      <fieldset id="f-scope"><legend>Объём</legend></fieldset>
+      <fieldset id="f-group"><legend>Группы требований</legend></fieldset>
+      <fieldset id="f-edge"><legend>Связи</legend></fieldset>
+    </div>
+  </details>
+</header>
+<main>
+  <div id="stage">
+    <div id="labels"></div>
+    <div id="tip" hidden></div>
+    <div class="legend" id="legend-process" aria-label="Обозначения">
+      <div><svg width="18" height="12"><rect x="1" y="2" width="16" height="8" rx="1" fill="var(--step)" stroke="var(--ink)" stroke-width=".8"/></svg>шаг процесса</div>
+      <div><svg width="18" height="12"><circle cx="9" cy="6" r="5" fill="var(--g-risk)"/></svg>требование: цвет группы, крупнее = выше приоритет</div>
+      <div><svg width="18" height="12"><circle cx="9" cy="6" r="5" fill="var(--g-risk)" fill-opacity=".3"/></svg>бледное: объём «продукт»</div>
+      <div><svg width="18" height="12"><path d="M9 1 L15 6 L9 11 L3 6 Z" fill="var(--z-high)"/></svg>риск: цвет зоны (зелёная, жёлтая, красная)</div>
+      <div><svg width="18" height="12"><line x1="1" y1="6" x2="17" y2="6" stroke="var(--z-high)" stroke-width="1.5"/></svg>риск → требование</div>
+      <div><svg width="18" height="12"><line x1="1" y1="6" x2="17" y2="6" stroke="var(--muted)" stroke-width="1.5"/></svg>требование → шаг (пунктир: второй шаг)</div>
+      <div><svg width="18" height="12"><path d="M1 10 Q9 0 17 10" fill="none" stroke="var(--accent)" stroke-width="1.5"/></svg>связь между требованиями</div>
+    </div>
+    <div class="legend" id="legend-links" aria-label="Обозначения" hidden>
+      <div><svg width="18" height="12"><circle cx="9" cy="6" r="5" fill="var(--g-risk)"/></svg>требование: цвет группы</div>
+      <div><svg width="18" height="12"><circle cx="5" cy="6" r="2.5" fill="var(--muted)"/><circle cx="13" cy="6" r="5" fill="var(--muted)"/></svg>крупнее = больше связей</div>
+      <div><svg width="18" height="12"><circle cx="9" cy="6" r="5" fill="var(--g-risk)" fill-opacity=".3"/></svg>бледное: объём «продукт»</div>
+      <div><svg width="18" height="12"><line x1="1" y1="6" x2="17" y2="6" stroke="var(--accent)" stroke-width="1.5"/></svg>связь из поля «Связи» в functional.md</div>
+      <div>облака: группы требований</div>
+    </div>
+  </div>
+  <aside id="panel" aria-live="polite"></aside>
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+
+/*GRAPH-DATA-BEGIN*/
+const DATA = {
+ "sources": "functional.md 0.2, risks.md 0.1, diagrams.md",
+ "steps": [
+  {
+   "id": "S1",
+   "name": "Запуск и настройки",
+   "what": "Выбор режима, проверка настроек, подготовка журнала",
+   "fr": [
+    "FR-MODE-01",
+    "FR-MODE-02",
+    "FR-MODE-03",
+    "FR-MODE-05",
+    "FR-MODE-08",
+    "FR-MODE-09"
+   ],
+   "also": []
+  },
+  {
+   "id": "S2",
+   "name": "Загрузка данных сетей",
+   "what": "События и состояние контрактов Ethereum и Arbitrum, выгрузки Boros, сверка с сетью",
+   "fr": [
+    "FR-DATA-01",
+    "FR-DATA-04",
+    "FR-DATA-05",
+    "FR-DATA-08",
+    "FR-DATA-09"
+   ],
+   "also": []
+  },
+  {
+   "id": "S3",
+   "name": "Замороженные наборы",
+   "what": "Скачанное сохраняется набором с версией, бэктест проигрывает только его",
+   "fr": [
+    "FR-DATA-06"
+   ],
+   "also": []
+  },
+  {
+   "id": "S4",
+   "name": "Лента событий",
+   "what": "События двух сетей в одной ленте, проверка свежести и согласованности данных",
+   "fr": [
+    "FR-DATA-02",
+    "FR-DATA-03",
+    "FR-DATA-07",
+    "FR-MODE-07"
+   ],
+   "also": []
+  },
+  {
+   "id": "S5",
+   "name": "Состояние позиции",
+   "what": "Петля и хедж после события: PT в залоге, долг, маржа Boros",
+   "fr": [
+    "FR-POS-01",
+    "FR-POS-02",
+    "FR-POS-03",
+    "FR-POS-04",
+    "FR-POS-05",
+    "FR-POS-06",
+    "FR-POS-07",
+    "FR-POS-08",
+    "FR-POS-10",
+    "FR-MODE-04"
+   ],
+   "also": [
+    "FR-POS-09"
+   ]
+  },
+  {
+   "id": "S6",
+   "name": "Расчёт риска",
+   "what": "LTV и запас по цене оракула, границы коридора, риск ноги Boros, стоимость выхода",
+   "fr": [
+    "FR-RISK-01",
+    "FR-RISK-02",
+    "FR-RISK-03",
+    "FR-RISK-04",
+    "FR-RISK-05",
+    "FR-RISK-06",
+    "FR-RISK-07",
+    "FR-RISK-08",
+    "FR-RISK-09",
+    "FR-RISK-10",
+    "FR-RISK-11",
+    "FR-RISK-12",
+    "FR-RISK-13",
+    "FR-RISK-14",
+    "FR-RISK-15",
+    "FR-RISK-16",
+    "FR-RISK-17"
+   ],
+   "also": [
+    "FR-EXEC-03",
+    "FR-MODE-04"
+   ]
+  },
+  {
+   "id": "S7",
+   "name": "Решения",
+   "what": "Одно решение по приоритету: защита, выход, подстройка, держать",
+   "fr": [
+    "FR-DEC-01",
+    "FR-DEC-02",
+    "FR-DEC-03",
+    "FR-DEC-04",
+    "FR-DEC-05",
+    "FR-DEC-06",
+    "FR-DEC-07",
+    "FR-POS-09",
+    "FR-POS-11"
+   ],
+   "also": [
+    "FR-MODE-04"
+   ]
+  },
+  {
+   "id": "S8",
+   "name": "Исполнение",
+   "what": "Приказы через интерфейс исполнения: имитация или рекомендация человеку",
+   "fr": [
+    "FR-EXEC-01",
+    "FR-EXEC-02",
+    "FR-EXEC-03",
+    "FR-EXEC-04",
+    "FR-EXEC-05",
+    "FR-EXEC-06",
+    "FR-EXEC-07",
+    "FR-EXEC-08"
+   ],
+   "also": [
+    "FR-POS-05",
+    "FR-POS-11"
+   ]
+  },
+  {
+   "id": "S9",
+   "name": "Вывод",
+   "what": "Строка в консоль, запись в журнал, отчёт в конце бэктеста",
+   "fr": [
+    "FR-OUT-01",
+    "FR-OUT-02",
+    "FR-OUT-03",
+    "FR-OUT-04",
+    "FR-OUT-05",
+    "FR-OUT-06",
+    "FR-OUT-07",
+    "FR-MODE-06"
+   ],
+   "also": []
+  }
+ ],
+ "fr": [
+  {
+   "id": "FR-MODE-01",
+   "title": "Режим «бэктест»",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S1"
+   ],
+   "text": "Программа проигрывает замороженный набор исторических данных в порядке времени, ведёт виртуальную позицию, принимает решения и исполняет их имитацией. Результат: журнал решений и отчёт.",
+   "feasibility": "способ известен",
+   "estimate": "L",
+   "check": "прогон на эталонном наборе данных даёт ожидаемый журнал решений.",
+   "links": [
+    "FR-DATA-06",
+    "FR-EXEC-02",
+    "FR-OUT-03",
+    "FR-OUT-04"
+   ]
+  },
+  {
+   "id": "FR-MODE-02",
+   "title": "Режим «paper-trading»",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S1"
+   ],
+   "text": "Программа получает живые данные обеих сетей, при старте открывает виртуальную позицию по настройкам и ведёт её, исполняя решения имитацией. Транзакций в сеть не отправляет.",
+   "feasibility": "способ известен",
+   "estimate": "L",
+   "check": "непрерывная работа на живых данных в течение заданного времени (длительность в технических требованиях); состояние виртуальной позиции согласовано с данными сети на тех же блоках.",
+   "links": [
+    "FR-DATA-02",
+    "FR-EXEC-02",
+    "FR-MODE-07"
+   ]
+  },
+  {
+   "id": "FR-MODE-03",
+   "title": "Режим «наблюдение»",
+   "scope": "семестр",
+   "priority": 2,
+   "steps": [
+    "S1"
+   ],
+   "text": "Программа читает из сети состояние реальной позиции по адресам кошелька (петля в Morpho, хедж в Pendle или Boros), считает риск и выдаёт рекомендации. Исполняет их человек.",
+   "feasibility": "проверено 17.09.2026 (состояние позиций обеих площадок читается из публичных данных без ключей)",
+   "estimate": "M",
+   "check": "на известном адресе прочитанные долг, залог и маржа совпадают с данными, которые показывают сами протоколы.",
+   "links": [
+    "FR-DATA-01",
+    "FR-EXEC-04"
+   ]
+  },
+  {
+   "id": "FR-MODE-04",
+   "title": "Одна логика риска и решений во всех режимах",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S5",
+    "S6",
+    "S7"
+   ],
+   "text": "Режимы отличаются только источником данных и реализацией исполнения. Расчёт риска и принятие решений во всех режимах выполняет один и тот же код.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "запись живого потока (события в порядке поступления, FR-DATA-03), поданная как история, даёт те же решения, что и вживую.",
+   "links": [
+    "FR-EXEC-01",
+    "FR-DATA-03"
+   ]
+  },
+  {
+   "id": "FR-MODE-05",
+   "title": "Настройки",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S1"
+   ],
+   "text": "Параметры задаются одним файлом настроек. Обязательны: режим; для бэктеста и paper-trading рынок, капитал, целевой LTV и вариант хеджа; для наблюдения адреса; для рынков с линейным дисконтом депег X (FR-RISK-15). Параметры хеджа (правило размера и доля ρ, правило подгонки и его параметр, порог переката Boros) получат умолчания по итогам исследования (раздел 1.4), до этого они обязательны. Остальные параметры имеют умолчания из исследования Pendle PT-Loop: целевой LTV 0.80, бюджет вероятности ликвидации 10⁻⁴ за 3 часа. Неизвестный или недопустимый параметр останавливает запуск с сообщением, какой параметр и почему. Файл с адресами в репозиторий не входит.",
+   "feasibility": "способ известен",
+   "estimate": "S",
+   "check": "тесты на отсутствующий, неизвестный и выходящий за границы параметр.",
+   "links": [
+    "FR-POS-05",
+    "FR-DEC-02",
+    "FR-RISK-15"
+   ]
+  },
+  {
+   "id": "FR-MODE-06",
+   "title": "Остановка по Ctrl+C",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S9"
+   ],
+   "text": "По сигналу остановки программа дописывает журнал, выводит итоговое состояние позиции и завершается. Записанное до сигнала не теряется.",
+   "feasibility": "способ известен",
+   "estimate": "S",
+   "check": "тест посылает сигнал посреди прогона; журнал полон и читается.",
+   "links": [
+    "FR-OUT-03"
+   ]
+  },
+  {
+   "id": "FR-MODE-07",
+   "title": "Обрыв связи в живых режимах",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S4"
+   ],
+   "text": "При обрыве связи с узлом сети состояние позиции сохраняется. После восстановления программа догружает пропущенные блоки и события и только после этого снова принимает решения. Пока данные отстают, она выводит предупреждение и решений не принимает.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "тест с имитацией обрыва: пропущенные события догружены, в период отставания решений нет.",
+   "links": [
+    "FR-DATA-07",
+    "FR-DATA-08"
+   ]
+  },
+  {
+   "id": "FR-MODE-08",
+   "title": "Восстановление после перезапуска",
+   "scope": "продукт",
+   "priority": 1,
+   "steps": [
+    "S1"
+   ],
+   "text": "После падения или перезапуска процесса программа восстанавливает состояние позиции и журнал и продолжает работу. Повторная отправка приказа не открывает вторую позицию.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "процесс принудительно завершается посреди прогона; после запуска состояние совпадает с состоянием до падения.",
+   "links": [
+    "FR-EXEC-08"
+   ]
+  },
+  {
+   "id": "FR-MODE-09",
+   "title": "Работа как сервис",
+   "scope": "продукт",
+   "priority": 2,
+   "steps": [
+    "S1"
+   ],
+   "text": "Круглосуточная работа на сервере: автозапуск, обновление без потери состояния, ротация журналов.",
+   "feasibility": "способ известен",
+   "estimate": "L",
+   "check": "обновление работающего сервиса без потери состояния позиции.",
+   "links": [
+    "FR-MODE-08",
+    "FR-OUT-07"
+   ]
+  },
+  {
+   "id": "FR-POS-01",
+   "title": "Модель петли",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S5"
+   ],
+   "text": "Состояние петли: количество PT в залоге, долг в USDC (растёт по ставке заёмщика Morpho), LTV и health factor по цене оракула рынка, стоимость позиции при выходе.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "долг, посчитанный программой по ставке, совпадает с долгом позиции в контракте Morpho на тех же блоках.",
+   "links": [
+    "FR-RISK-05",
+    "FR-RISK-11"
+   ]
+  },
+  {
+   "id": "FR-POS-02",
+   "title": "Хедж, вариант YT",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S5"
+   ],
+   "text": "Хедж задаётся количеством YT того же рынка Pendle, стоимость берётся по рынку Pendle. К погашению стоимость YT падает до 0, и программа это учитывает.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "стоимость YT по формуле рынка совпадает с котировкой Pendle на тех же блоках.",
+   "links": [
+    "FR-OUT-05"
+   ]
+  },
+  {
+   "id": "FR-POS-03",
+   "title": "Хедж, вариант Boros",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S5"
+   ],
+   "text": "Хедж задаётся позицией long YU на рынке Boros. У неё свой капитал в токене залога рынка (для рынков ETH это ETH, а не доллары), свой Net Balance, поддерживающая маржа MM и health. Стоимость позиции равна размеру, умноженному на mark rate и на время до погашения, и переоценивается сразу при движении mark rate. Начальный рынок Boros задаётся в настройках, дальше хедж перекатывается по FR-POS-09.",
+   "feasibility": "проверено 17.09 и 19.09.2026 (параметры маржи и токены залога рынков читаются без ключа)",
+   "estimate": "L",
+   "check": "Net Balance и health, посчитанные программой по истории сделок и расчётов, совпадают с данными Boros для той же позиции (допуск [ПОДТВЕРДИТЬ]).",
+   "links": [
+    "FR-POS-09",
+    "FR-RISK-09",
+    "FR-RISK-12"
+   ]
+  },
+  {
+   "id": "FR-POS-04",
+   "title": "Состав позиции",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S5"
+   ],
+   "text": "Позиция состоит из петли и не более чем одного хеджа. Вариант хеджа (без хеджа, YT, Boros) задаётся в настройках.",
+   "feasibility": "способ известен",
+   "estimate": "S",
+   "check": "прогоны с каждым вариантом на одном наборе данных.",
+   "links": [
+    "FR-OUT-05"
+   ]
+  },
+  {
+   "id": "FR-POS-05",
+   "title": "Открытие позиции в бэктесте и paper-trading",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S5",
+    "S8"
+   ],
+   "text": "По рынку, капиталу, целевому LTV и варианту хеджа из настроек программа строит план открытия (число витков петли, размер хеджа) и исполняет его через интерфейс исполнения с учётом комиссий, проскальзывания и газа.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "после открытия LTV равен целевому (допуск [ПОДТВЕРДИТЬ]); затраты открытия отражены в журнале.",
+   "links": [
+    "FR-MODE-05",
+    "FR-EXEC-02"
+   ]
+  },
+  {
+   "id": "FR-POS-06",
+   "title": "Конец позиции",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S5"
+   ],
+   "text": "Позиция заканчивается выходом в погашение (FR-POS-11), досрочным закрытием по решению или ликвидацией. Петля ликвидируется, когда LTV по цене оракула превышает LLTV; штраф по правилу Morpho: LIF = min(1.15, 1 / (0.3·LLTV + 0.7)). Хедж Boros ликвидируется, когда Net Balance ниже MM; штраф по правилам рынка Boros. В бэктесте и paper-trading ликвидация записывается событием со штрафом, и ликвидатор забирает ногу целиком: всю петлю или всю позицию Boros. После ликвидации всей позиции решений нет.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "синтетический сценарий с ростом LTV выше LLTV даёт событие ликвидации всей ноги с правильным штрафом.",
+   "links": [
+    "FR-POS-10",
+    "FR-POS-11",
+    "FR-RISK-05",
+    "FR-RISK-09"
+   ]
+  },
+  {
+   "id": "FR-POS-07",
+   "title": "Несколько позиций",
+   "scope": "продукт",
+   "priority": 3,
+   "steps": [
+    "S5"
+   ],
+   "text": "Портфель из нескольких позиций с общим лимитом риска.",
+   "feasibility": "способ известен",
+   "estimate": "L",
+   "check": "суммарный риск портфеля не превышает лимита на синтетических сценариях.",
+   "links": []
+  },
+  {
+   "id": "FR-POS-08",
+   "title": "Выбор рынка и перекат PT",
+   "scope": "продукт",
+   "priority": 3,
+   "steps": [
+    "S5"
+   ],
+   "text": "Выбор рынка PT и начального рынка хеджа для открытия позиции; перекат петли в новый рынок PT при погашении.",
+   "feasibility": "под вопросом",
+   "estimate": "L",
+   "check": "[ПОДТВЕРДИТЬ] при постановке задачи.",
+   "links": [
+    "FR-POS-09"
+   ]
+  },
+  {
+   "id": "FR-POS-09",
+   "title": "Перекат хеджа Boros",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S7",
+    "S5"
+   ],
+   "text": "Когда отношение τ_B / τ (время до погашения рынка Boros к времени до погашения PT) падает ниже порога, хедж переходит в рынок Boros того же актива и той же биржи со следующим сроком: старая позиция закрывается, новая открывается с затратами по стакану. В бэктесте и paper-trading перекат исполняется, в наблюдении выдаётся рекомендацией. Если рынка со следующим сроком нет, программа предупреждает, и позиция остаётся без хеджа. Порог [ПОДТВЕРДИТЬ исследованием].",
+   "feasibility": "проверено 27.09.2026 (рынки Boros месячные, сроки 26.09, 31.10, 28.11, 26.12.2025 и далее; рынок PT живёт несколько месяцев, поэтому на историческом периоде нужно несколько перекатов)",
+   "estimate": "M",
+   "check": "бэктест на периоде 27NOV2025 проходит через несколько перекатов, затраты каждого переката есть в журнале.",
+   "links": [
+    "FR-POS-03",
+    "FR-DEC-02"
+   ]
+  },
+  {
+   "id": "FR-POS-10",
+   "title": "Объём ликвидации по поведению ликвидаторов",
+   "scope": "продукт",
+   "priority": 3,
+   "steps": [
+    "S5"
+   ],
+   "text": "Имитация ликвидации берёт ту часть позиции, которую на практике забирают ликвидаторы рынков PT, а не ногу целиком.",
+   "feasibility": "под вопросом (нужно исследование событий ликвидации на истории)",
+   "estimate": "M",
+   "check": "доля ликвидированного в имитации сверяется с событиями ликвидации на истории.",
+   "links": [
+    "FR-POS-06"
+   ]
+  },
+  {
+   "id": "FR-POS-11",
+   "title": "Выход в погашение",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S7",
+    "S8"
+   ],
+   "text": "В дату погашения PT позиция закрывается выкупом: долг гасится через flash loan Morpho, залог выводится, PT выкупается в sUSDe по номиналу, sUSDe меняется на USDC по котировке пула (FR-EXEC-03). Хедж закрывается вместе с петлёй.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "бэктест, дошедший до погашения, закрывается выкупом; итог сверяется с ручным расчётом.",
+   "links": [
+    "FR-DEC-01",
+    "FR-EXEC-03",
+    "FR-POS-06"
+   ]
+  },
+  {
+   "id": "FR-DATA-01",
+   "title": "Источник истины: сеть",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S2"
+   ],
+   "text": "Состояние Morpho (параметры рынка, долг и залог позиции, ставка займа), цепочка оракула рынка и её параметры, рынок Pendle (implied rate) и Boros (счёт, маржа, mark rate, погашение) читаются из контрактов. Данные сторонних API используются только со сверкой с сетью.",
+   "feasibility": "проверено 17.09.2026 (вызовы контрактов через публичные узлы)",
+   "estimate": "L",
+   "check": "для каждого вида данных тест сверки с вызовом контракта на известном блоке.",
+   "links": [
+    "FR-RISK-01",
+    "FR-RISK-04"
+   ]
+  },
+  {
+   "id": "FR-DATA-02",
+   "title": "Частота данных",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S4"
+   ],
+   "text": "Данные Ethereum обрабатываются на каждом блоке. Данные Boros обрабатываются на каждой сделке и каждом расчёте ставки финансирования.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "на эталонном наборе в журнале нет пропущенных блоков и событий.",
+   "links": [
+    "FR-DATA-03"
+   ]
+  },
+  {
+   "id": "FR-DATA-03",
+   "title": "Порядок событий двух сетей",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S4"
+   ],
+   "text": "В бэктесте события Ethereum и Arbitrum сливаются в одну ленту по времени, и при совпадении времени порядок задаёт фиксированное правило. В живых режимах события обрабатываются в порядке поступления, и этот порядок записывается в журнал: ожидание опоздавших событий задержало бы решения.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "события с совпадающим временем в бэктесте выстраиваются одинаково при любом порядке поступления; запись живого потока воспроизводит те же решения (FR-MODE-04).",
+   "links": [
+    "FR-MODE-04",
+    "FR-OUT-03"
+   ]
+  },
+  {
+   "id": "FR-DATA-04",
+   "title": "История Ethereum",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S2"
+   ],
+   "text": "История восстанавливается по событиям контрактов (изменения implied rate рынка Pendle, операции Morpho) и по формулам из кода контрактов. Восстановленные величины выборочно сверяются с вызовами контрактов на исторических блоках.",
+   "feasibility": "проверено 19.09.2026 (события рынков отдают бесплатные узлы без ключа)",
+   "estimate": "L",
+   "check": "восстановленная цена оракула совпадает с `price()` контракта на выборке блоков (допуск в технических требованиях).",
+   "links": [
+    "FR-RISK-02",
+    "FR-RISK-04"
+   ]
+  },
+  {
+   "id": "FR-DATA-05",
+   "title": "История Boros",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S2"
+   ],
+   "text": "История берётся из открытых выгрузок Boros (сделки, стакан, расчёты ставки, исходные ставки финансирования бирж) и сверяется с событиями сети. Mark rate восстанавливается по формуле контракта.",
+   "feasibility": "проверено 17.09 и 27.09.2026 (выгрузки доступны без ключа с августа 2025 года; события рынков Boros в сети Arbitrum публичный узел отдаёт как минимум за 9 месяцев)",
+   "estimate": "L",
+   "check": "восстановленный mark rate совпадает с событиями сети на выборке сделок.",
+   "links": [
+    "FR-RISK-09"
+   ]
+  },
+  {
+   "id": "FR-DATA-06",
+   "title": "Замороженные наборы данных",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S3"
+   ],
+   "text": "Скачанные данные сохраняются набором с номером версии; у каждой записи есть номер и хеш блока. Бэктест и тесты работают только с замороженными наборами и без сети.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "прогон с отключённой сетью проходит; изменение набора меняет номер версии.",
+   "links": [
+    "FR-MODE-01"
+   ]
+  },
+  {
+   "id": "FR-DATA-07",
+   "title": "Качество данных без молчаливых подстановок",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S4"
+   ],
+   "text": "Устаревшие данные самой программы, отставание узла, реорганизация цепочки и расхождение узлов распознаются явно. В таком состоянии программа выводит предупреждение с причиной и не принимает решений, пока данные не восстановлены. Пропуск не заполняется предыдущим или придуманным значением. Устаревшее значение фида внутри цепочки оракула рынка к этому требованию не относится: Morpho пользуется таким значением как есть, и программа считает риск так же, выводя предупреждение.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "тест на каждый вид сбоя: предупреждение есть, решений нет; тест с устаревшим фидом в оракуле: риск считается по нему, предупреждение есть.",
+   "links": [
+    "FR-MODE-07",
+    "FR-RISK-04",
+    "FR-DEC-07"
+   ]
+  },
+  {
+   "id": "FR-DATA-08",
+   "title": "Несколько узлов на сеть",
+   "scope": "семестр",
+   "priority": 2,
+   "steps": [
+    "S2"
+   ],
+   "text": "Для каждой сети задаётся несколько узлов. При отказе одного программа переключается на другой.",
+   "feasibility": "проверено 19.09.2026 (для обеих сетей есть несколько рабочих бесплатных узлов)",
+   "estimate": "M",
+   "check": "тест с отказом основного узла.",
+   "links": [
+    "FR-MODE-07"
+   ]
+  },
+  {
+   "id": "FR-DATA-09",
+   "title": "Другие сети и площадки",
+   "scope": "продукт",
+   "priority": 3,
+   "steps": [
+    "S2"
+   ],
+   "text": "Рынки в других сетях (Base и прочие) и Hyperliquid как площадка хеджа.",
+   "feasibility": "способ известен",
+   "estimate": "L",
+   "check": "те же сверки с сетью, что для Ethereum и Arbitrum.",
+   "links": [
+    "FR-DATA-01"
+   ]
+  },
+  {
+   "id": "FR-RISK-01",
+   "title": "Цена ликвидации берётся у оракула рынка",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S6"
+   ],
+   "text": "LTV петли считается по цене, которую возвращает оракул рынка Morpho. Какой оракул у рынка и из каких компонентов он состоит, программа читает из контрактов рынка, а не из своих настроек.",
+   "feasibility": "проверено 17.09.2026 (цепочки оракулов рынков PT-sUSDe разобраны по контрактам)",
+   "estimate": "M",
+   "check": "для рынков из объёма проекта прочитанная цепочка совпадает с известной.",
+   "links": [
+    "FR-RISK-02",
+    "FR-RISK-03"
+   ]
+  },
+  {
+   "id": "FR-RISK-02",
+   "title": "Поддерживаемые виды оракула",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S6"
+   ],
+   "text": "Программа воспроизводит формулы трёх видов оракула:\n\n- **TWAP Pendle:** цена PT в базовом активе равна exp(−l̄·τ), где l̄ есть среднее ln   implied rate рынка за окно TWAP, τ есть время до погашения в годах (год равен 365   дням); после погашения цена равна 1;\n- **линейный дисконт:** цена PT равна 1 − d·τ при годовой ставке дисконта d;\n- **мета-оракул:** основной и резервный источники; переключение на резервный, если   расхождение больше порога держится дольше заданного времени, и возврат через заданное   время. Параметры читаются из контракта.",
+   "feasibility": "проверено 17.09.2026 (формулы сверены с исходным кодом контрактов)",
+   "estimate": "L",
+   "check": "сверка по FR-RISK-04.",
+   "links": [
+    "FR-DATA-04",
+    "FR-RISK-04",
+    "FR-RISK-06"
+   ]
+  },
+  {
+   "id": "FR-RISK-03",
+   "title": "Отказ на незнакомом оракуле",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S6"
+   ],
+   "text": "Если в цепочке оракула рынка есть компонент, формулы которого программа не знает, она отказывается считать риск и сообщает, какой компонент не поддержан. Приближённый расчёт не допускается.",
+   "feasibility": "способ известен",
+   "estimate": "S",
+   "check": "рынок с гибридным оракулом (FR-RISK-13) даёт отказ с именем компонента.",
+   "links": [
+    "FR-RISK-13"
+   ]
+  },
+  {
+   "id": "FR-RISK-04",
+   "title": "Сверка формулы оракула с сетью",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S6"
+   ],
+   "text": "Цена, посчитанная по формуле, сверяется с `price()` оракула: в бэктесте на выборке исторических блоков, в живых режимах на текущих блоках. Если расхождение больше допуска, программа выводит предупреждение и не принимает решений, пока расхождение держится.",
+   "feasibility": "проверено 17.09.2026 (исторический `price()` получен на бесплатном узле)",
+   "estimate": "M",
+   "check": "тест на наборе блоков с известными `price()`; тест с намеренно испорченной формулой даёт предупреждение.",
+   "links": [
+    "FR-DATA-07"
+   ]
+  },
+  {
+   "id": "FR-RISK-05",
+   "title": "LTV, health factor и запас до ликвидации",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S6"
+   ],
+   "text": "Для петли на каждом шаге считаются LTV по цене оракула, health factor (LLTV / LTV) и запас до ликвидации: на сколько должна упасть цена оракула или вырасти долг, чтобы LTV достиг LLTV.",
+   "feasibility": "способ известен",
+   "estimate": "S",
+   "check": "модульные тесты на известных значениях; сверка с состоянием позиции в Morpho.",
+   "links": [
+    "FR-POS-01"
+   ]
+  },
+  {
+   "id": "FR-RISK-06",
+   "title": "Прогноз цены оракула по его формуле",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S6"
+   ],
+   "text": "Будущая цена оракула прогнозируется по формуле этого оракула. На рынке с TWAP-оракулом случайный фактор это implied rate рынка: она меняется скачками в моменты сделок, а цена оракула следует за её средним за окно (FR-RISK-07). На рынке с линейным дисконтом цена детерминирована, и риск создают рост долга и переключение мета-оракула при депеге USDe (FR-RISK-15, FR-RISK-16). Программа сообщает, какой фактор риска главный на текущем рынке.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "на линейном дисконте прогноз совпадает с формулой точно; на TWAP проверки FR-RISK-07.",
+   "links": [
+    "FR-RISK-07",
+    "FR-RISK-15",
+    "FR-RISK-16"
+   ]
+  },
+  {
+   "id": "FR-RISK-07",
+   "title": "Вероятность ликвидации и верхняя граница LTV на рынках с TWAP-оракулом",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S6"
+   ],
+   "text": "Программа методом Монте-Карло считает распределение максимума средней за окно TWAP implied rate на горизонте h и из него верхнюю границу коридора L_U: наибольший LTV, при котором вероятность достичь LLTV за h не больше бюджета ε. По умолчанию h = 3 часа, ε = 10⁻⁴. Модель следует механизму рынка: implied rate меняется только в моменты сделок. Сделки приходят пуассоновским потоком с интенсивностью по скользящему окну истории (длина окна [ПОДТВЕРДИТЬ]). Размер скачка берётся из эмпирического распределения за окно, хвост которого заменён обобщённым распределением Парето. Расчёт повторяется на каждой сделке и не реже раза в час; он не зависит от позиции и общий для всех прогонов на одном рынке.",
+   "feasibility": "под вопросом. Замер 27.09.2026 на ноутбуке с 12 потоками: 0,16–0,8 с на расчёт из 1 млн путей при 40–100 сделках в сутки (столько было на рынке 27NOV2025). Точность и скорость подтверждает прототип, первый шаг плана работ. Если пороги не выполняются, способ выбирается заново; автоматического перехода на упрощённую формулу нет",
+   "estimate": "L",
+   "check": "(1) погрешность L_U не больше 0.001 с вероятностью 95% по повторным независимым расчётам; (2) для броуновского движения без TWAP результат совпадает с формулой первого прохождения, эталонная реализация которой есть на Python, в пределах статистической погрешности; (3) калибровка на истории на уровнях 10⁻² и 10⁻³: доля превышений предсказанного квантиля близка к уровню (уровень 10⁻⁴ на доступной истории не проверяется, ожидаемое число превышений меньше одного); (4) скорость: не больше 1 с на расчёт [ПОДТВЕРДИТЬ прототипом].",
+   "links": [
+    "FR-RISK-06",
+    "FR-RISK-17",
+    "FR-DEC-01"
+   ]
+  },
+  {
+   "id": "FR-RISK-08",
+   "title": "Нижняя граница LTV",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S6"
+   ],
+   "text": "Нижняя граница коридора L_L экономическая: наращивать плечо имеет смысл, только если доход, возвращённый за горизонт h_reb, больше стоимости ребалансировки. Если заём дороже доходности PT, L_L = 0, и плечо не наращивается.",
+   "feasibility": "проверено (формула и эталонная реализация в исследовании Pendle PT-Loop)",
+   "estimate": "S",
+   "check": "совпадение с эталонной реализацией на Python.",
+   "links": [
+    "FR-DEC-01"
+   ]
+  },
+  {
+   "id": "FR-RISK-09",
+   "title": "Риск ноги Boros",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S6"
+   ],
+   "text": "Для хеджа Boros считаются health и запас до ликвидации по mark rate. До следующей сделки mark rate меняется детерминированно (окно по формуле контракта), поэтому момент пересечения порога считается заранее.",
+   "feasibility": "проверено 17.09.2026 (формула окна по коду контрактов Boros; у живых рынков mark rate равен implied rate)",
+   "estimate": "M",
+   "check": "на истории сделок заранее посчитанный момент пересечения совпадает с моментом пересечения в восстановленном ряду mark rate.",
+   "links": [
+    "FR-POS-03",
+    "FR-DATA-05"
+   ]
+  },
+  {
+   "id": "FR-RISK-10",
+   "title": "Базисный риск хеджа",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S6"
+   ],
+   "text": "Программа измеряет на скользящем окне связь между implied yield рынка PT и ставкой хеджа и использует её при выборе размера хеджа. Для Boros это связь с mark rate; для YT связь точная по построению. Оценка связи выводится в отчёт.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "на синтетических рядах с заданной связью оценка восстанавливает её (допуск [ПОДТВЕРДИТЬ]).",
+   "links": [
+    "FR-DEC-02",
+    "FR-OUT-05"
+   ]
+  },
+  {
+   "id": "FR-RISK-11",
+   "title": "Стоимость выхода",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S6"
+   ],
+   "text": "Программа считает, сколько USDC получится при закрытии позиции сейчас: погашение долга, продажа PT и хеджа по котировкам (FR-EXEC-03), газ.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "в исторические моменты стоимость выхода сверяется с котировками пулов на том же блоке.",
+   "links": [
+    "FR-EXEC-03",
+    "FR-DEC-01"
+   ]
+  },
+  {
+   "id": "FR-RISK-12",
+   "title": "Долларовая стоимость залога хеджа",
+   "scope": "семестр",
+   "priority": 2,
+   "steps": [
+    "S6"
+   ],
+   "text": "Если залог хеджа Boros не в долларах (для рынков ETH это ETH), его долларовая стоимость пересчитывается по цене и показывается отдельно. Риск ликвидации хеджа от цены ETH не растёт, но стоимость страхового капитала в долларах меняется вместе с ETH.",
+   "feasibility": "проверено 19.09.2026 (токены залога рынков Boros)",
+   "estimate": "S",
+   "check": "модульный тест пересчёта.",
+   "links": [
+    "FR-POS-03"
+   ]
+  },
+  {
+   "id": "FR-RISK-13",
+   "title": "Гибридные и прочие оракулы",
+   "scope": "продукт",
+   "priority": 2,
+   "steps": [
+    "S6"
+   ],
+   "text": "Поддержка оракулов вида «минимум из TWAP и линейного дисконта» и других компонентов, которые встречаются у рынков PT.",
+   "feasibility": "проверено 17.09.2026 (такие оракулы есть у живых рынков PT-reUSD и PT-sUSDS)",
+   "estimate": "M",
+   "check": "те же сверки, что в FR-RISK-04.",
+   "links": [
+    "FR-RISK-03"
+   ]
+  },
+  {
+   "id": "FR-RISK-14",
+   "title": "Слежение за качеством модели",
+   "scope": "продукт",
+   "priority": 2,
+   "steps": [
+    "S6"
+   ],
+   "text": "Программа сравнивает текущие оценки параметров модели с калибровкой и предупреждает, если режим рынка сменился.",
+   "feasibility": "под вопросом",
+   "estimate": "M",
+   "check": "[ПОДТВЕРДИТЬ] критерий смены режима.",
+   "links": [
+    "FR-RISK-07"
+   ]
+  },
+  {
+   "id": "FR-RISK-15",
+   "title": "Верхняя граница LTV на рынках с линейным дисконтом",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S6"
+   ],
+   "text": "На рынке с линейным дисконтом быстро ликвидировать позицию может только переключение мета-оракула на резервный источник при депеге USDe. Верхняя граница L_U равна наибольшему LTV, при котором позиция переживает переключение с депегом X и рост долга за время до переключения при наибольшей ставке, которую допускает формула процентной модели рынка (AdaptiveCurveIRM). Без поправки на долг L_U = LLTV·(1 − X). Депег X обязателен в настройках; при запуске программа выводит таблицу L_U для нескольких значений X.",
+   "feasibility": "проверено 17.09 и 27.09.2026 (параметры мета-оракула и формула процентной модели по контрактам; рост долга за 16 часов при наибольшей ставке около 0,03%)",
+   "estimate": "S",
+   "check": "при LLTV 0.915 и X = 5% программа даёт L_U около 0.869; модульные тесты таблицы и поправки на долг.",
+   "links": [
+    "FR-RISK-02",
+    "FR-RISK-16",
+    "FR-DEC-01"
+   ]
+  },
+  {
+   "id": "FR-RISK-16",
+   "title": "Таймер переключения мета-оракула",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S6"
+   ],
+   "text": "Как только расхождение основного и резервного источников превысило порог мета-оракула, программа показывает LTV по резервной цене и время, оставшееся до переключения. Если LTV по резервной цене выше L_U, это повод сократить плечо до переключения.",
+   "feasibility": "способ известен",
+   "estimate": "S",
+   "check": "синтетический сценарий депега: таймер и LTV по резервной цене верны, решение о сокращении плеча принимается до переключения.",
+   "links": [
+    "FR-RISK-15",
+    "FR-DEC-04"
+   ]
+  },
+  {
+   "id": "FR-RISK-17",
+   "title": "Кластеры сделок в модели ставки",
+   "scope": "продукт",
+   "priority": 3,
+   "steps": [
+    "S6"
+   ],
+   "text": "Модель частоты сделок в FR-RISK-07 учитывает всплески активности (самовозбуждающийся процесс вместо пуассоновского).",
+   "feasibility": "под вопросом",
+   "estimate": "M",
+   "check": "калибровка, как в FR-RISK-07, лучше, чем у пуассоновской модели.",
+   "links": [
+    "FR-RISK-07"
+   ]
+  },
+  {
+   "id": "FR-DEC-01",
+   "title": "Решения по петле",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S7"
+   ],
+   "text": "На каждом шаге программа выбирает одно решение по петле:\n\n- держать;\n- сократить плечо, если LTV выше L_U (FR-RISK-07 или FR-RISK-15, по виду оракула):   вернуть LTV к целевому;\n- нарастить плечо, если LTV ниже L_L и это окупается: вернуть LTV к целевому;\n- закрыть досрочно, если заём дороже доходности PT с учётом стоимости выхода.\n В дату погашения позиция выходит выкупом (FR-POS-11).",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "синтетические сценарии на каждое решение; сверка с эталоном на Python на прогонах, где контроллер срабатывал (агрессивный целевой LTV, стресс волатильности). На штатных параметрах исследования контроллер не сработал ни разу, поэтому их одних для проверки недостаточно.",
+   "links": [
+    "FR-RISK-07",
+    "FR-RISK-08",
+    "FR-RISK-11",
+    "FR-RISK-15",
+    "FR-DEC-04",
+    "FR-POS-11"
+   ]
+  },
+  {
+   "id": "FR-DEC-02",
+   "title": "Решения по хеджу",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S7"
+   ],
+   "text": "Целевой размер хеджа задаётся одним из двух правил, доля ρ ∈ [0, 1]:\n 1. **доля защиты цены PT:** изменение стоимости хеджа компенсирует долю ρ изменения    стоимости петли при сдвиге implied yield PT, с поправкой на измеренную связь ставок    (FR-RISK-10); 2. **доля номинала:** размер хеджа равен доле ρ стоимости залога.\n На каждом шаге программа проверяет, выгодна ли подгонка фактического размера к целевому, по одному из трёх правил. Стоимость подгонки включает комиссии и газ.\n 1. **сценарий:** подгонка идёт, если убыток недохеджированной части при скачке ставки на    Y п. п. больше стоимости подгонки; 2. **цена риска:** подгонка идёт, если λ, умноженная на снижение дисперсии стоимости    позиции, больше стоимости подгонки; 3. **коридор:** подгонка идёт, если отношение фактического размера к целевому вышло из    [1 − b, 1 + b].\n Прочие решения по хеджу: довнести маржу или вывести излишек (только Boros) по health хеджа; закрыть хедж вместе с петлёй; перекатить хедж Boros (FR-POS-09). Правило размера, ρ, правило подгонки и его параметр [ПОДТВЕРДИТЬ исследованием].",
+   "feasibility": "способ известен",
+   "estimate": "L",
+   "check": "синтетические сценарии на каждое правило; подгонка не происходит, когда её стоимость больше выгоды по выбранному правилу.",
+   "links": [
+    "FR-RISK-09",
+    "FR-RISK-10",
+    "FR-POS-09",
+    "FR-MODE-05"
+   ]
+  },
+  {
+   "id": "FR-DEC-03",
+   "title": "Переброска капитала между сетями (вариант Boros)",
+   "scope": "семестр",
+   "priority": 2,
+   "steps": [
+    "S7"
+   ],
+   "text": "В каждой сети держится запас капитала. Когда одной ноге грозит ликвидация, а у другой есть излишек, программа решает перевести USDC между сетями через Circle CCTP и обменять его в токен залога. Деньги в пути не считаются доступными; время перевода (15–19 минут) учитывается в решении.",
+   "feasibility": "проверено 19.09.2026 (время перевода CCTP); размер запаса [ПОДТВЕРДИТЬ] расчётом",
+   "estimate": "M",
+   "check": "сценарий, где петле нужна защита, а капитал в другой сети: решение учитывает время в пути.",
+   "links": [
+    "FR-DEC-04",
+    "FR-DEC-06"
+   ]
+  },
+  {
+   "id": "FR-DEC-04",
+   "title": "Порядок приоритетов",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S7"
+   ],
+   "text": "Если поводов для решений несколько, порядок такой: защита от ликвидации на любой площадке, затем выход, затем подстройка, затем «держать».",
+   "feasibility": "способ известен",
+   "estimate": "S",
+   "check": "сценарий с одновременными поводами для разных решений.",
+   "links": [
+    "FR-DEC-01",
+    "FR-DEC-02"
+   ]
+  },
+  {
+   "id": "FR-DEC-05",
+   "title": "Объяснение решения",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S7"
+   ],
+   "text": "Каждое решение и каждое предупреждение сопровождаются причиной и числами, по которым они приняты: LTV, границы коридора, вероятность ликвидации, стоимость действия.",
+   "feasibility": "способ известен",
+   "estimate": "S",
+   "check": "в журнале у каждого решения есть причина и все числа.",
+   "links": [
+    "FR-OUT-02",
+    "FR-OUT-03"
+   ]
+  },
+  {
+   "id": "FR-DEC-06",
+   "title": "Быстрые мосты",
+   "scope": "продукт",
+   "priority": 3,
+   "steps": [
+    "S7"
+   ],
+   "text": "Переброска капитала через сторонние быстрые мосты.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "те же сценарии, что в FR-DEC-03, со временем перевода выбранного моста.",
+   "links": [
+    "FR-DEC-03"
+   ]
+  },
+  {
+   "id": "FR-DEC-07",
+   "title": "Защитные решения при ненадёжных данных",
+   "scope": "продукт",
+   "priority": 1,
+   "steps": [
+    "S7"
+   ],
+   "text": "Когда собственные данные программы ненадёжны (FR-DATA-07), разрешены только решения, снижающие риск (сократить плечо, довнести маржу), по худшей оценке состояния.",
+   "feasibility": "под вопросом",
+   "estimate": "M",
+   "check": "сценарий с отставанием узла при растущем LTV: принимается только защитное решение.",
+   "links": [
+    "FR-DATA-07",
+    "FR-DEC-04"
+   ]
+  },
+  {
+   "id": "FR-EXEC-01",
+   "title": "Интерфейс исполнения",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S8"
+   ],
+   "text": "Решения покидают ядро только через интерфейс исполнения. Ядро не знает, что за ним: имитация, рекомендация человеку или реальная отправка транзакций.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "ядро собирается и тестируется без настоящих реализаций исполнения, с тестовой заглушкой.",
+   "links": [
+    "FR-MODE-04"
+   ]
+  },
+  {
+   "id": "FR-EXEC-02",
+   "title": "Имитация исполнения",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S8"
+   ],
+   "text": "В бэктесте и paper-trading приказы исполняются имитацией: комиссии протоколов, проскальзывание по котировке пула, газ по цене газа блока. Приказ исполняется не раньше следующего блока своей сети плюс измеренная задержка программы.",
+   "feasibility": "способ известен",
+   "estimate": "L",
+   "check": "затраты сделки в журнале совпадают с ручным расчётом на известном блоке.",
+   "links": [
+    "FR-EXEC-03",
+    "FR-POS-05"
+   ]
+  },
+  {
+   "id": "FR-EXEC-03",
+   "title": "Цена выхода",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S8",
+    "S6"
+   ],
+   "text": "Цена продажи PT и обмена в USDC в обоих режимах считается одинаково: по котировкам крупнейших пулов через вызов контрактов (eth_call) на блоке решения, в бэктесте на историческом, в paper-trading на текущем. Где пула нет, используется допущение «цена оракула минус скидка» с пометкой в отчёте. В paper-trading рядом в журнал пишется котировка Pendle Hosted SDK для сравнения. Путь досрочного выхода: PT → sUSDe через Pendle, затем sUSDe → USDC обменом.",
+   "feasibility": "проверено 17.09 и 19.09.2026 (котировки без ключа; вызовы контрактов на исторических блоках через бесплатный узел)",
+   "estimate": "M",
+   "check": "для выборки моментов котировка совпадает с запросом к пулу на том же блоке.",
+   "links": [
+    "FR-RISK-11",
+    "FR-OUT-04",
+    "FR-POS-11"
+   ]
+  },
+  {
+   "id": "FR-EXEC-04",
+   "title": "Рекомендации в режиме наблюдения",
+   "scope": "семестр",
+   "priority": 2,
+   "steps": [
+    "S8"
+   ],
+   "text": "В режиме наблюдения решение превращается в текст для человека: что сделать, на какой площадке и в каком объёме.",
+   "feasibility": "способ известен",
+   "estimate": "S",
+   "check": "для каждого вида решения есть текст с объёмом и площадкой.",
+   "links": [
+    "FR-MODE-03"
+   ]
+  },
+  {
+   "id": "FR-EXEC-05",
+   "title": "Реальное исполнение",
+   "scope": "продукт",
+   "priority": 1,
+   "steps": [
+    "S8"
+   ],
+   "text": "Подписание и отправка транзакций, оценка газа, обработка неудачных транзакций, защита от MEV.",
+   "feasibility": "способ известен",
+   "estimate": "L",
+   "check": "исполнение в тестовой сети и на копии состояния основной сети.",
+   "links": [
+    "FR-EXEC-06",
+    "FR-EXEC-07",
+    "FR-EXEC-08"
+   ]
+  },
+  {
+   "id": "FR-EXEC-06",
+   "title": "Секреты",
+   "scope": "продукт",
+   "priority": 1,
+   "steps": [
+    "S8"
+   ],
+   "text": "Хранение приватных ключей, ограничение прав, отзыв доступа.",
+   "feasibility": "способ известен",
+   "estimate": "L",
+   "check": "ключи не попадают ни в журнал, ни в репозиторий; отозванный ключ блокирует исполнение.",
+   "links": [
+    "FR-EXEC-05"
+   ]
+  },
+  {
+   "id": "FR-EXEC-07",
+   "title": "Ограничители и аварийная остановка",
+   "scope": "продукт",
+   "priority": 1,
+   "steps": [
+    "S8"
+   ],
+   "text": "Лимиты на размер и частоту приказов; остановка всего исполнения одной командой.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "приказ сверх лимита отклоняется; после команды остановки приказы не уходят.",
+   "links": [
+    "FR-EXEC-05"
+   ]
+  },
+  {
+   "id": "FR-EXEC-08",
+   "title": "Сверка состояния после исполнения",
+   "scope": "продукт",
+   "priority": 1,
+   "steps": [
+    "S8"
+   ],
+   "text": "После исполнения внутреннее состояние позиции сверяется с сетью; расхождение останавливает исполнение. Повторная отправка приказа не исполняет его дважды.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "сценарий с неудачной транзакцией и повторной отправкой.",
+   "links": [
+    "FR-EXEC-05",
+    "FR-MODE-08"
+   ]
+  },
+  {
+   "id": "FR-OUT-01",
+   "title": "Легенда метрик",
+   "scope": "семестр",
+   "priority": 2,
+   "steps": [
+    "S9"
+   ],
+   "text": "При старте программа выводит по-русски, что значит каждая показываемая величина.",
+   "feasibility": "способ известен",
+   "estimate": "S",
+   "check": "у каждой величины из вывода есть строка в легенде.",
+   "links": [
+    "FR-OUT-02"
+   ]
+  },
+  {
+   "id": "FR-OUT-02",
+   "title": "Консоль",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S9"
+   ],
+   "text": "В консоль выводится строка по-русски на каждое решение, кроме «держать», и на каждое предупреждение: время события, решение, причина, числа. В живых режимах раз в N минут выводится строка состояния (N задаётся в настройках), в бэктесте выводятся прогресс и итог.",
+   "feasibility": "способ известен",
+   "estimate": "S",
+   "check": "каждое решение, кроме «держать», и каждое предупреждение из журнала есть в консоли; строка состояния выходит с заданным периодом.",
+   "links": [
+    "FR-DEC-05",
+    "FR-OUT-03"
+   ]
+  },
+  {
+   "id": "FR-OUT-03",
+   "title": "Журнал решений",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S9"
+   ],
+   "text": "Параллельно с консолью программа пишет машиночитаемый журнал каждого шага, включая «держать» (формат выбирается в ADR). Журнал пишется сжатым. Повторный прогон бэктеста на том же наборе данных с теми же настройками даёт то же несжатое содержимое журнала. По настройке журнал пишется кратко: решения, кроме «держать», предупреждения и итог, а также версия программы, набор данных и настройки. Полный журнал такого прогона восстанавливается повторным запуском.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "два прогона, сравнение хешей несжатого содержимого; повторный запуск по краткому журналу даёт полный журнал с тем же итогом.",
+   "links": [
+    "FR-DATA-03",
+    "FR-DATA-06"
+   ]
+  },
+  {
+   "id": "FR-OUT-04",
+   "title": "Отчёт бэктеста",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S9"
+   ],
+   "text": "По окончании бэктеста программа выводит отчёт: доходность на весь капитал вместе с капиталом хеджа, максимальная просадка, число ребалансировок, ликвидации, затраты (газ, комиссии, проскальзывание, перекаты), пометки о допущениях.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "отчёт на эталонном наборе совпадает с посчитанным вручную по журналу.",
+   "links": [
+    "FR-MODE-01",
+    "FR-EXEC-03"
+   ]
+  },
+  {
+   "id": "FR-OUT-05",
+   "title": "Показатели хеджа в отчёте",
+   "scope": "семестр",
+   "priority": 1,
+   "steps": [
+    "S9"
+   ],
+   "text": "Отчёт бэктеста показывает для хеджа: стоимость хеджа (комиссии, газ, перекаты), оценку базисного риска, вклад хеджа в доходность и просадку, поведение в стрессовых эпизодах. Сравнение вариантов между прогонами делает исследование (раздел 1.4), а не программа.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "отчёт строится для каждого варианта хеджа на эталонном наборе; числа сходятся с журналом.",
+   "links": [
+    "FR-POS-04",
+    "FR-RISK-10"
+   ]
+  },
+  {
+   "id": "FR-OUT-06",
+   "title": "Оповещения вне консоли",
+   "scope": "продукт",
+   "priority": 2,
+   "steps": [
+    "S9"
+   ],
+   "text": "Оповещения о предупреждениях и решениях через внешний канал (мессенджер, почта).",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "предупреждение доходит по каналу за заданное время.",
+   "links": [
+    "FR-DEC-05"
+   ]
+  },
+  {
+   "id": "FR-OUT-07",
+   "title": "Метрики и наблюдаемость",
+   "scope": "продукт",
+   "priority": 2,
+   "steps": [
+    "S9"
+   ],
+   "text": "Метрики работы программы и позиции, графики, доступные извне.",
+   "feasibility": "способ известен",
+   "estimate": "M",
+   "check": "метрики отражают состояние на синтетическом сценарии.",
+   "links": [
+    "FR-MODE-09"
+   ]
+  }
+ ],
+ "risks": [
+  {
+   "id": "RS-01",
+   "title": "Скачок implied yield на рынке с TWAP-оракулом, ликвидация петли",
+   "kind": "стратегия",
+   "p": 2,
+   "d": 5,
+   "score": 10,
+   "zone": "высокая",
+   "fr": [
+    "FR-RISK-01",
+    "FR-RISK-02",
+    "FR-RISK-05",
+    "FR-RISK-06",
+    "FR-RISK-07",
+    "FR-DEC-01",
+    "FR-DEC-04",
+    "FR-DATA-02"
+   ],
+   "frp": [
+    "FR-RISK-17"
+   ],
+   "sem_text": "FR-RISK-01, FR-RISK-02, FR-RISK-05, FR-RISK-06, FR-RISK-07, FR-DEC-01, FR-DEC-04, FR-DATA-02"
+  },
+  {
+   "id": "RS-02",
+   "title": "Депег USDe и переключение мета-оракула, ликвидация петли",
+   "kind": "стратегия",
+   "p": 1,
+   "d": 5,
+   "score": 5,
+   "zone": "средняя",
+   "fr": [
+    "FR-RISK-02",
+    "FR-RISK-15",
+    "FR-RISK-16",
+    "FR-DEC-01",
+    "FR-MODE-05"
+   ],
+   "frp": [],
+   "sem_text": "FR-RISK-02, FR-RISK-15, FR-RISK-16, FR-DEC-01, FR-MODE-05"
+  },
+  {
+   "id": "RS-03",
+   "title": "Ставка займа выше доходности PT",
+   "kind": "стратегия",
+   "p": 3,
+   "d": 3,
+   "score": 9,
+   "zone": "средняя",
+   "fr": [
+    "FR-POS-01",
+    "FR-RISK-05",
+    "FR-RISK-08",
+    "FR-RISK-11",
+    "FR-DEC-01"
+   ],
+   "frp": [],
+   "sem_text": "FR-POS-01, FR-RISK-05, FR-RISK-08, FR-RISK-11, FR-DEC-01"
+  },
+  {
+   "id": "RS-04",
+   "title": "Ликвидация хеджа Boros",
+   "kind": "стратегия",
+   "p": 3,
+   "d": 3,
+   "score": 9,
+   "zone": "средняя",
+   "fr": [
+    "FR-POS-03",
+    "FR-POS-06",
+    "FR-RISK-09",
+    "FR-DEC-02",
+    "FR-DEC-04",
+    "FR-DATA-05"
+   ],
+   "frp": [],
+   "sem_text": "FR-POS-03, FR-POS-06, FR-RISK-09, FR-DEC-02, FR-DEC-04, FR-DATA-05"
+  },
+  {
+   "id": "RS-05",
+   "title": "Хедж движется не так, как цена PT (базисный риск)",
+   "kind": "стратегия",
+   "p": 4,
+   "d": 2,
+   "score": 8,
+   "zone": "средняя",
+   "fr": [
+    "FR-RISK-10",
+    "FR-DEC-02",
+    "FR-OUT-05"
+   ],
+   "frp": [],
+   "sem_text": "FR-RISK-10, FR-DEC-02, FR-OUT-05"
+  },
+  {
+   "id": "RS-06",
+   "title": "Нет ликвидности для выхода",
+   "kind": "стратегия",
+   "p": 3,
+   "d": 3,
+   "score": 9,
+   "zone": "средняя",
+   "fr": [
+    "FR-POS-11",
+    "FR-RISK-11",
+    "FR-EXEC-03",
+    "FR-DEC-01"
+   ],
+   "frp": [],
+   "sem_text": "FR-POS-11, FR-RISK-11, FR-EXEC-03, FR-DEC-01"
+  },
+  {
+   "id": "RS-07",
+   "title": "Капитал нужен в другой сети",
+   "kind": "стратегия",
+   "p": 2,
+   "d": 4,
+   "score": 8,
+   "zone": "средняя",
+   "fr": [
+    "FR-DEC-03"
+   ],
+   "frp": [
+    "FR-DEC-06"
+   ],
+   "sem_text": "FR-DEC-03"
+  },
+  {
+   "id": "RS-08",
+   "title": "Перекат хеджа Boros невозможен или дорог",
+   "kind": "стратегия",
+   "p": 2,
+   "d": 2,
+   "score": 4,
+   "zone": "низкая",
+   "fr": [
+    "FR-POS-09"
+   ],
+   "frp": [],
+   "sem_text": "FR-POS-09"
+  },
+  {
+   "id": "RS-09",
+   "title": "Данные программы устарели или неверны",
+   "kind": "стратегия",
+   "p": 3,
+   "d": 4,
+   "score": 12,
+   "zone": "высокая",
+   "fr": [
+    "FR-DATA-07",
+    "FR-DATA-08",
+    "FR-MODE-07"
+   ],
+   "frp": [
+    "FR-DEC-07"
+   ],
+   "sem_text": "FR-DATA-07, FR-DATA-08, FR-MODE-07"
+  },
+  {
+   "id": "RS-10",
+   "title": "Ошибка в формулах программы",
+   "kind": "стратегия",
+   "p": 3,
+   "d": 5,
+   "score": 15,
+   "zone": "высокая",
+   "fr": [
+    "FR-RISK-04",
+    "FR-DATA-01",
+    "FR-DATA-04",
+    "FR-DATA-05",
+    "FR-POS-01",
+    "FR-POS-03"
+   ],
+   "frp": [],
+   "sem_text": "FR-RISK-04, FR-DATA-01, FR-DATA-04, FR-DATA-05, FR-POS-01, FR-POS-03"
+  },
+  {
+   "id": "RS-11",
+   "title": "Незнакомый вид оракула у рынка",
+   "kind": "стратегия",
+   "p": 2,
+   "d": 5,
+   "score": 10,
+   "zone": "высокая",
+   "fr": [
+    "FR-RISK-01",
+    "FR-RISK-03"
+   ],
+   "frp": [
+    "FR-RISK-13"
+   ],
+   "sem_text": "FR-RISK-01, FR-RISK-03"
+  },
+  {
+   "id": "RS-12",
+   "title": "Модель недооценивает хвост распределения",
+   "kind": "стратегия",
+   "p": 3,
+   "d": 4,
+   "score": 12,
+   "zone": "высокая",
+   "fr": [
+    "FR-RISK-07"
+   ],
+   "frp": [
+    "FR-RISK-14",
+    "FR-RISK-17"
+   ],
+   "sem_text": "FR-RISK-07"
+  },
+  {
+   "id": "RS-13",
+   "title": "Затраты на сделки съедают доход",
+   "kind": "стратегия",
+   "p": 4,
+   "d": 3,
+   "score": 12,
+   "zone": "высокая",
+   "fr": [
+    "FR-EXEC-02",
+    "FR-RISK-08",
+    "FR-DEC-02",
+    "FR-OUT-04",
+    "FR-OUT-05"
+   ],
+   "frp": [],
+   "sem_text": "FR-EXEC-02, FR-RISK-08, FR-DEC-02, FR-OUT-04, FR-OUT-05"
+  },
+  {
+   "id": "RS-14",
+   "title": "Ошибка реального исполнения",
+   "kind": "стратегия",
+   "p": 3,
+   "d": 5,
+   "score": 15,
+   "zone": "высокая",
+   "fr": [],
+   "frp": [
+    "FR-EXEC-05",
+    "FR-EXEC-06",
+    "FR-EXEC-07",
+    "FR-EXEC-08",
+    "FR-MODE-08"
+   ],
+   "sem_text": ""
+  },
+  {
+   "id": "RS-15",
+   "title": "Долларовая стоимость залога хеджа падает вместе с ETH",
+   "kind": "стратегия",
+   "p": 3,
+   "d": 2,
+   "score": 6,
+   "zone": "средняя",
+   "fr": [
+    "FR-RISK-12"
+   ],
+   "frp": [],
+   "sem_text": "FR-RISK-12"
+  },
+  {
+   "id": "RS-16",
+   "title": "Взлом или сбой протокола",
+   "kind": "стратегия",
+   "p": 1,
+   "d": 5,
+   "score": 5,
+   "zone": "средняя",
+   "fr": [],
+   "frp": [],
+   "sem_text": ""
+  },
+  {
+   "id": "RS-17",
+   "title": "Человек не видит рекомендацию вовремя",
+   "kind": "стратегия",
+   "p": 3,
+   "d": 4,
+   "score": 12,
+   "zone": "высокая",
+   "fr": [
+    "FR-EXEC-04",
+    "FR-DEC-05",
+    "FR-OUT-02"
+   ],
+   "frp": [
+    "FR-OUT-06",
+    "FR-MODE-09"
+   ],
+   "sem_text": "FR-EXEC-04, FR-DEC-05, FR-OUT-02"
+  },
+  {
+   "id": "RS-18",
+   "title": "Рост implied yield обесценивает позицию при досрочном выходе",
+   "kind": "стратегия",
+   "p": 3,
+   "d": 4,
+   "score": 12,
+   "zone": "высокая",
+   "fr": [
+    "FR-POS-02",
+    "FR-POS-03",
+    "FR-POS-04",
+    "FR-DEC-02",
+    "FR-RISK-10"
+   ],
+   "frp": [],
+   "sem_text": "FR-POS-02, FR-POS-03, FR-POS-04, FR-DEC-02, FR-RISK-10"
+  },
+  {
+   "id": "RP-01",
+   "title": "Объём семестра больше учебного времени",
+   "kind": "проект",
+   "p": 4,
+   "d": 4,
+   "score": 16,
+   "zone": "высокая",
+   "fr": [],
+   "frp": [],
+   "sem_text": "перенос требований приоритета 2 в «продукт» (functional.md, раздел 4); каждый шаг плана даёт работающую программу"
+  },
+  {
+   "id": "RP-02",
+   "title": "Монте-Карло не укладывается в точность или скорость",
+   "kind": "проект",
+   "p": 3,
+   "d": 3,
+   "score": 9,
+   "zone": "средняя",
+   "fr": [
+    "FR-RISK-07"
+   ],
+   "frp": [],
+   "sem_text": "прототип первым шагом плана (FR-RISK-07), точка решения владельца"
+  },
+  {
+   "id": "RP-03",
+   "title": "Бесплатные узлы закрывают доступ к истории",
+   "kind": "проект",
+   "p": 3,
+   "d": 3,
+   "score": 9,
+   "zone": "средняя",
+   "fr": [
+    "FR-DATA-06",
+    "FR-DATA-08"
+   ],
+   "frp": [],
+   "sem_text": "FR-DATA-06, FR-DATA-08; ключ провайдера как запасной путь"
+  },
+  {
+   "id": "RP-04",
+   "title": "Выгрузки Boros пропадают или меняют формат",
+   "kind": "проект",
+   "p": 2,
+   "d": 3,
+   "score": 6,
+   "zone": "средняя",
+   "fr": [
+    "FR-DATA-06",
+    "FR-DATA-05"
+   ],
+   "frp": [],
+   "sem_text": "FR-DATA-06, FR-DATA-05"
+  },
+  {
+   "id": "RP-05",
+   "title": "Протоколы меняют контракты или API",
+   "kind": "проект",
+   "p": 3,
+   "d": 2,
+   "score": 6,
+   "zone": "средняя",
+   "fr": [
+    "FR-DATA-01"
+   ],
+   "frp": [],
+   "sem_text": "FR-DATA-01"
+  },
+  {
+   "id": "RP-06",
+   "title": "Эталон на Python сам ошибается",
+   "kind": "проект",
+   "p": 3,
+   "d": 2,
+   "score": 6,
+   "zone": "средняя",
+   "fr": [
+    "FR-DATA-01",
+    "FR-RISK-04"
+   ],
+   "frp": [],
+   "sem_text": "FR-DATA-01, FR-RISK-04"
+  },
+  {
+   "id": "RP-07",
+   "title": "Сборка не воспроизводится в другом окружении",
+   "kind": "проект",
+   "p": 2,
+   "d": 3,
+   "score": 6,
+   "zone": "средняя",
+   "fr": [],
+   "frp": [],
+   "sem_text": "Dockerfile и CI (технические требования)"
+  },
+  {
+   "id": "RP-08",
+   "title": "Живой рынок погашается раньше конца семестра",
+   "kind": "проект",
+   "p": 5,
+   "d": 3,
+   "score": 15,
+   "zone": "высокая",
+   "fr": [],
+   "frp": [],
+   "sem_text": ""
+  },
+  {
+   "id": "RP-09",
+   "title": "Требования и код расходятся",
+   "kind": "проект",
+   "p": 4,
+   "d": 2,
+   "score": 8,
+   "zone": "средняя",
+   "fr": [],
+   "frp": [],
+   "sem_text": "functional.md, раздел 5; проверки ноутбука risk-map.ipynb"
+  },
+  {
+   "id": "RP-10",
+   "title": "Дата сдачи не объявлена",
+   "kind": "проект",
+   "p": 3,
+   "d": 3,
+   "score": 9,
+   "zone": "средняя",
+   "fr": [],
+   "frp": [],
+   "sem_text": "план с датами [ПОДТВЕРДИТЬ]"
+  },
+  {
+   "id": "RP-11",
+   "title": "Один разработчик: любая пауза останавливает проект",
+   "kind": "проект",
+   "p": 3,
+   "d": 3,
+   "score": 9,
+   "zone": "средняя",
+   "fr": [],
+   "frp": [],
+   "sem_text": "промежуточный результат каждые 1–2 недели"
+  },
+  {
+   "id": "RP-12",
+   "title": "Прогоны бэктеста не повторяются",
+   "kind": "проект",
+   "p": 3,
+   "d": 3,
+   "score": 9,
+   "zone": "средняя",
+   "fr": [
+    "FR-OUT-03",
+    "FR-DATA-03",
+    "FR-DATA-06",
+    "FR-MODE-04"
+   ],
+   "frp": [],
+   "sem_text": "FR-OUT-03, FR-DATA-03, FR-DATA-06, FR-MODE-04"
+  }
+ ]
+};
+/*GRAPH-DATA-END*/
+
+const panel = document.getElementById('panel');
+if (!DATA) {
+  panel.innerHTML = '<p id="empty">Данные не собраны. Запустите ноутбук risk-map.ipynb из папки docs/requirements.</p>';
+  throw new Error('no data');
+}
+
+// ---------- модель ----------
+const GROUPS = ['MODE', 'POS', 'DATA', 'RISK', 'DEC', 'EXEC', 'OUT'];
+const GROUP_NAMES = { MODE: 'режимы и запуск', POS: 'позиция', DATA: 'данные', RISK: 'расчёт риска',
+  DEC: 'решения', EXEC: 'исполнение', OUT: 'вывод' };
+const ZONE_TOKEN = { 'низкая': '--z-low', 'средняя': '--z-mid', 'высокая': '--z-high' };
+// Порядок шагов процесса (он же в diagrams.md, раздел 6).
+const FLOWS = [
+  { a: 'S1', b: 'S2', kind: 'main' },
+  { a: 'S2', b: 'S3', kind: 'main' },
+  { a: 'S3', b: 'S4', kind: 'main' },
+  { a: 'S2', b: 'S4', kind: 'live', note: 'живые режимы' },
+  { a: 'S4', b: 'S5', kind: 'main' }, { a: 'S5', b: 'S6', kind: 'main' },
+  { a: 'S6', b: 'S7', kind: 'main' }, { a: 'S7', b: 'S8', kind: 'main' },
+  { a: 'S8', b: 'S9', kind: 'main' },
+  { a: 'S8', b: 'S5', kind: 'feedback', note: 'новое состояние позиции' },
+  { a: 'S9', b: 'S4', kind: 'next', note: 'следующее событие' },
+];
+const CYCLE = ['S4', 'S5', 'S6', 'S7', 'S8', 'S9'];
+
+const nodes = new Map();          // id -> {id, kind, data, pos, mesh, label, hidden}
+const adj = new Map();            // id -> Set(id)
+const edges = [];                 // {a, b, type, line, base, dashed}
+const link = (a, b) => {
+  if (!adj.has(a)) adj.set(a, new Set());
+  if (!adj.has(b)) adj.set(b, new Set());
+  adj.get(a).add(b); adj.get(b).add(a);
+};
+const groupOf = id => id.split('-')[1];
+const shortId = id => id.replace(/^FR-/, '');
+const frById = new Map(DATA.fr.map(f => [f.id, f]));
+const stepById = new Map(DATA.steps.map(s => [s.id, s]));
+const riskById = new Map(DATA.risks.map(r => [r.id, r]));
+
+// ---------- раскладка ----------
+const DX = 12, Y_STEP = 0, Y_FR = 10, Y_RISK = 20, CELL = 2.5;
+const pos = new Map();
+DATA.steps.forEach((s, i) => pos.set(s.id, new THREE.Vector3((i - 4) * DX, Y_STEP, 0)));
+for (const s of DATA.steps) {
+  const n = s.fr.length, cols = n <= 1 ? 1 : n <= 4 ? 2 : 3, rows = Math.ceil(n / cols);
+  const sx = pos.get(s.id).x;
+  s.fr.forEach((id, k) => {
+    const c = k % cols, r = Math.floor(k / cols);
+    pos.set(id, new THREE.Vector3(sx + (c - (cols - 1) / 2) * CELL, Y_FR, (r - (rows - 1) / 2) * CELL));
+  });
+}
+const loose = [];
+for (const r of DATA.risks) {
+  const ids = [...r.fr, ...r.frp].filter(id => pos.has(id));
+  if (!ids.length) { loose.push(r.id); continue; }
+  const m = new THREE.Vector3();
+  ids.forEach(id => m.add(pos.get(id)));
+  m.divideScalar(ids.length); m.y = Y_RISK;
+  pos.set(r.id, m);
+}
+// раздвинуть риски, стоящие слишком близко (детерминированно)
+const riskIds = DATA.risks.map(r => r.id).filter(id => !loose.includes(id));
+for (let it = 0; it < 400; it++) {
+  for (let i = 0; i < riskIds.length; i++) for (let j = i + 1; j < riskIds.length; j++) {
+    const p = pos.get(riskIds[i]), q = pos.get(riskIds[j]);
+    let dx = q.x - p.x, dz = q.z - p.z, d = Math.hypot(dx, dz);
+    const MIN = 2.9;
+    if (d >= MIN) continue;
+    if (d < 1e-6) { dx = Math.cos(i + j); dz = Math.sin(i + j); d = 1; }
+    const push = (MIN - d) / 2 / d;
+    p.x -= dx * push; p.z -= dz * push; q.x += dx * push; q.z += dz * push;
+  }
+}
+const looseX = 4 * DX + DX * 1.1;
+loose.forEach((id, k) => pos.set(id, new THREE.Vector3(looseX, Y_RISK, (k - (loose.length - 1) / 2) * 2.8)));
+
+// ---------- сцена ----------
+const stage = document.getElementById('stage');
+const labelsEl = document.getElementById('labels');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+stage.prepend(renderer.domElement);
+const labelRenderer = new CSS2DRenderer({ element: labelsEl });
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.1, 2000);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+scene.add(new THREE.AmbientLight(0xffffff, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.4);
+sun.position.set(40, 80, 60); scene.add(sun);
+
+const css = () => getComputedStyle(document.documentElement);
+const tok = name => css().getPropertyValue(name).trim();
+const col = name => new THREE.Color(tok(name));
+
+function addLabel(obj, html, cls, cx = 0.5, cy = 0.5) {
+  const div = document.createElement('div');
+  div.className = 'lbl ' + (cls || '');
+  div.innerHTML = html;
+  const l = new CSS2DObject(div);
+  l.center.set(cx, cy);  // точка привязки подписи относительно узла
+  obj.add(l);
+  return l;
+}
+
+// слои
+const minX = -4 * DX - 7, maxX = looseX + 3;
+const layerPlanes = [];
+[[Y_STEP, 'Шаги процесса'], [Y_FR, 'Требования'], [Y_RISK, 'Риски']].forEach(([y, name], k) => {
+  const g = new THREE.PlaneGeometry(maxX - minX, 22);
+  const m = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.05, side: THREE.DoubleSide, depthWrite: false });
+  const plane = new THREE.Mesh(g, m);
+  plane.rotation.x = -Math.PI / 2; plane.position.set((maxX + minX) / 2, y - 0.02, 0);
+  scene.add(plane); layerPlanes.push(plane);
+  const anchor = new THREE.Object3D(); anchor.position.set(minX + 1, y, 11 - k * 2.2); scene.add(anchor);
+  addLabel(anchor, name, 'layer', 0, 0.5);
+});
+
+// шаги
+const boxGeo = new THREE.BoxGeometry(DX * 0.78, 1.4, 4);
+const boxEdges = new THREE.EdgesGeometry(boxGeo);
+for (const s of DATA.steps) {
+  const mat = new THREE.MeshLambertMaterial({ transparent: true, opacity: 1 });
+  const mesh = new THREE.Mesh(boxGeo, mat);
+  mesh.position.copy(pos.get(s.id));
+  const outline = new THREE.LineSegments(boxEdges, new THREE.LineBasicMaterial({ transparent: true }));
+  mesh.add(outline);
+  scene.add(mesh);
+  const label = addLabel(mesh, `<b>${s.id}</b>${esc(s.name)}`, 'step', 0.5, -0.9);
+  nodes.set(s.id, { id: s.id, kind: 'step', data: s, mesh, outline, label, base: 1 });
+}
+// требования
+const sphere = { 1: new THREE.SphereGeometry(0.66, 22, 16), 2: new THREE.SphereGeometry(0.52, 20, 14), 3: new THREE.SphereGeometry(0.4, 16, 12) };
+for (const f of DATA.fr) {
+  const base = f.scope === 'продукт' ? 0.3 : 1;
+  const mesh = new THREE.Mesh(sphere[f.priority] || sphere[2], new THREE.MeshLambertMaterial({ transparent: true, opacity: base }));
+  mesh.position.copy(pos.get(f.id)); scene.add(mesh);
+  const label = addLabel(mesh, shortId(f.id), 'fr', 0.5, 1.5);
+  nodes.set(f.id, { id: f.id, kind: 'fr', data: f, mesh, label, base });
+}
+// риски
+const octa = new THREE.OctahedronGeometry(0.85);
+for (const r of DATA.risks) {
+  const mesh = new THREE.Mesh(octa, new THREE.MeshLambertMaterial({ transparent: true, opacity: 1 }));
+  mesh.position.copy(pos.get(r.id)); scene.add(mesh);
+  const label = addLabel(mesh, r.id, 'risk', 0.5, 1.6);
+  nodes.set(r.id, { id: r.id, kind: 'risk', data: r, mesh, label, base: 1 });
+}
+const looseAnchor = new THREE.Object3D();
+looseAnchor.position.set(looseX, Y_RISK + 2.2, -(loose.length / 2) * 2.8 - 1.5); scene.add(looseAnchor);
+if (loose.length) addLabel(looseAnchor, 'без связи с требованиями', 'flow', 1, 0.5);
+
+// рёбра
+function addEdge(a, b, type, points, dashed) {
+  const g = new THREE.BufferGeometry().setFromPoints(points);
+  const mat = dashed
+    ? new THREE.LineDashedMaterial({ transparent: true, dashSize: 0.5, gapSize: 0.4 })
+    : new THREE.LineBasicMaterial({ transparent: true });
+  const line = new THREE.Line(g, mat);
+  if (dashed) line.computeLineDistances();
+  scene.add(line);
+  const base = { riskfr: 0.42, frstep: 0.26, frfr: 0.16 }[type];
+  edges.push({ a, b, type, line, base });
+  link(a, b);
+}
+for (const r of DATA.risks) for (const id of [...r.fr, ...r.frp]) {
+  if (nodes.has(id)) addEdge(r.id, id, 'riskfr', [pos.get(r.id), pos.get(id)], false);
+}
+for (const f of DATA.fr) f.steps.forEach((sid, k) => {
+  const top = pos.get(sid).clone(); top.y += 0.7;
+  addEdge(f.id, sid, 'frstep', [pos.get(f.id), top], k > 0);
+});
+const seen = new Set();
+for (const f of DATA.fr) for (const o of f.links) {
+  if (!frById.has(o) || o === f.id) continue;
+  const key = [f.id, o].sort().join('|');
+  if (seen.has(key)) continue; seen.add(key);
+  const p = pos.get(f.id), q = pos.get(o), mid = p.clone().add(q).multiplyScalar(0.5);
+  mid.y += 2 + 0.08 * p.distanceTo(q);
+  addEdge(f.id, o, 'frfr', new THREE.QuadraticBezierCurve3(p, mid, q).getPoints(24), false);
+}
+const FRFR_COUNT = seen.size;
+
+// поток процесса
+const flowCurves = new Map();
+const flowObjs = [];
+const coneGeo = new THREE.ConeGeometry(0.45, 1.2, 12);
+for (const fl of FLOWS) {
+  const p = pos.get(fl.a).clone(), q = pos.get(fl.b).clone();
+  let curve;
+  if (fl.kind === 'main') {
+    const dir = Math.sign(q.x - p.x);
+    p.x += dir * DX * 0.39; q.x -= dir * DX * 0.39;
+    curve = new THREE.LineCurve3(p, q);
+  } else {
+    const shift = { live: [0, 4.5], feedback: [-3.5, 5.5], next: [-5.5, -5.5] }[fl.kind];
+    p.z += Math.sign(shift[1]) * 2; q.z += Math.sign(shift[1]) * 2;
+    const mid = p.clone().add(q).multiplyScalar(0.5);
+    mid.y += shift[0]; mid.z += shift[1];
+    curve = new THREE.QuadraticBezierCurve3(p, mid, q);
+  }
+  flowCurves.set(fl.a + '>' + fl.b, curve);
+  const pts = curve.getPoints(40);
+  const dashed = fl.kind === 'live' || fl.kind === 'next';
+  const mat = dashed ? new THREE.LineDashedMaterial({ transparent: true, dashSize: 0.7, gapSize: 0.5 })
+                     : new THREE.LineBasicMaterial({ transparent: true });
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), mat);
+  if (dashed) line.computeLineDistances();
+  scene.add(line);
+  const cone = new THREE.Mesh(coneGeo, new THREE.MeshBasicMaterial());
+  const end = curve.getPoint(1), tan = curve.getTangent(1).normalize();
+  cone.position.copy(end).addScaledVector(tan, -0.5);
+  cone.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), tan);
+  scene.add(cone);
+  flowObjs.push({ line, cone });
+  if (fl.note) {
+    const a = new THREE.Object3D(); a.position.copy(curve.getPoint(0.5)); scene.add(a);
+    addLabel(a, fl.note, 'flow');
+  }
+}
+const pulse = new THREE.Mesh(new THREE.SphereGeometry(0.7, 18, 12), new THREE.MeshBasicMaterial());
+pulse.visible = false; scene.add(pulse);
+
+// ---------- режим «Связи требований» ----------
+const processGroup = new THREE.Group();
+[...scene.children].filter(o => !o.isLight).forEach(o => processGroup.add(o));
+scene.add(processGroup);
+const linksGroup = new THREE.Group();
+linksGroup.visible = false; scene.add(linksGroup);
+
+const frAdj = new Map(DATA.fr.map(f => [f.id, new Set()]));
+const frPairs = [...seen].map(k => k.split('|'));
+frPairs.forEach(([a, b]) => { frAdj.get(a).add(b); frAdj.get(b).add(a); });
+
+// раскладка пружинами: связи притягивают, узлы отталкиваются, группа тянет к своему центру;
+// начальные позиции из хеша номера, поэтому раскладка при каждом открытии одна и та же
+const anchors = {};
+GROUPS.forEach((g, i) => {
+  const y = 1 - (i + 0.5) * 2 / GROUPS.length, r = Math.sqrt(1 - y * y), phi = i * 2.39996;
+  anchors[g] = new THREE.Vector3(Math.cos(phi) * r, y * 0.7, Math.sin(phi) * r).multiplyScalar(20);
+});
+function hash(str) { let h = 2166136261; for (const c of str) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; }
+const lp = new Map(), vel = new Map(), frIds = DATA.fr.map(f => f.id), tmp = new THREE.Vector3();
+for (const id of frIds) {
+  const h = hash(id);
+  const off = new THREE.Vector3((h & 255) / 255 - 0.5, ((h >> 8) & 255) / 255 - 0.5, ((h >> 16) & 255) / 255 - 0.5);
+  lp.set(id, anchors[groupOf(id)].clone().addScaledVector(off, 6));
+  vel.set(id, new THREE.Vector3());
+}
+for (let it = 0; it < 500; it++) {
+  const force = new Map(frIds.map(id => [id, new THREE.Vector3()]));
+  for (let i = 0; i < frIds.length; i++) for (let j = i + 1; j < frIds.length; j++) {
+    tmp.subVectors(lp.get(frIds[i]), lp.get(frIds[j]));
+    const d2 = Math.max(tmp.lengthSq(), 0.25);
+    tmp.multiplyScalar(40 / (d2 * Math.sqrt(d2)));
+    force.get(frIds[i]).add(tmp); force.get(frIds[j]).sub(tmp);
+  }
+  for (const [a, b] of frPairs) {
+    tmp.subVectors(lp.get(b), lp.get(a));
+    const d = tmp.length() || 1e-6;
+    tmp.multiplyScalar(0.06 * (d - 5) / d);
+    force.get(a).add(tmp); force.get(b).sub(tmp);
+  }
+  for (const id of frIds) {
+    force.get(id).addScaledVector(tmp.subVectors(anchors[groupOf(id)], lp.get(id)), 0.35);
+    const v = vel.get(id).add(force.get(id)).multiplyScalar(0.8);
+    if (v.length() > 2) v.setLength(2);
+    lp.get(id).add(v);
+  }
+}
+const lpCenter = new THREE.Vector3();
+lp.forEach(v => lpCenter.add(v)); lpCenter.divideScalar(lp.size);
+lp.forEach(v => v.sub(lpCenter));
+
+const linkNodes = new Map();
+for (const f of DATA.fr) {
+  const deg = frAdj.get(f.id).size, base = f.scope === 'продукт' ? 0.3 : 1;
+  const mesh = new THREE.Mesh(new THREE.SphereGeometry(0.4 + 0.1 * Math.min(deg, 10), 18, 12),
+    new THREE.MeshLambertMaterial({ transparent: true, opacity: base }));
+  mesh.position.copy(lp.get(f.id)); linksGroup.add(mesh);
+  const label = addLabel(mesh, shortId(f.id), 'fr', 0.5, 1.5);
+  linkNodes.set(f.id, { id: f.id, kind: 'fr', data: f, mesh, label, base, deg });
+}
+const linkEdges = frPairs.map(([a, b]) => {
+  const line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([lp.get(a), lp.get(b)]),
+    new THREE.LineBasicMaterial({ transparent: true }));
+  linksGroup.add(line);
+  return { a, b, line, base: groupOf(a) === groupOf(b) ? 0.3 : 0.45 };
+});
+for (const g of GROUPS) {
+  const members = frIds.filter(id => groupOf(id) === g);
+  const c = new THREE.Vector3();
+  members.forEach(id => c.add(lp.get(id))); c.divideScalar(members.length);
+  let top = -Infinity; members.forEach(id => { top = Math.max(top, lp.get(id).y); });
+  const a = new THREE.Object3D(); a.position.set(c.x, top + 2.2, c.z); linksGroup.add(a);
+  addLabel(a, `${g}: ${GROUP_NAMES[g]}`, 'layer', 0.5, 0);
+}
+
+// ---------- цвета по теме ----------
+function applyTheme() {
+  scene.background = col('--bg');
+  const ink = col('--ink'), muted = col('--muted'), accent = col('--accent');
+  layerPlanes.forEach(p => p.material.color.copy(ink));
+  for (const n of nodes.values()) {
+    if (n.kind === 'step') { n.mesh.material.color.copy(col('--step')); n.outline.material.color.copy(ink); }
+    if (n.kind === 'fr') n.mesh.material.color.copy(col('--g-' + groupOf(n.id).toLowerCase()));
+    if (n.kind === 'risk') n.mesh.material.color.copy(col(ZONE_TOKEN[n.data.zone]));
+  }
+  for (const e of edges) {
+    const c = e.type === 'riskfr' ? col(ZONE_TOKEN[riskById.get(e.a).zone]) : e.type === 'frstep' ? muted : accent;
+    e.line.material.color.copy(c);
+  }
+  for (const f of flowObjs) { f.line.material.color.copy(ink); f.cone.material.color.copy(ink); }
+  pulse.material.color.copy(accent);
+  for (const n of linkNodes.values()) n.mesh.material.color.copy(col('--g-' + groupOf(n.id).toLowerCase()));
+  for (const e of linkEdges) e.line.material.color.copy(accent);
+  document.querySelectorAll('[data-dot]').forEach(d => d.style.background = tok(d.dataset.dot));
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+// ---------- фильтры ----------
+const state = { scope: { 'семестр': true, 'продукт': true }, group: Object.fromEntries(GROUPS.map(g => [g, true])),
+  edge: { riskfr: true, frstep: true, frfr: true }, labelsAll: false, focus: null, set: null,
+  mode: 'process', view: '3d', depth: 1, depthOf: new Map() };
+function checkbox(parent, id, text, checked, onChange, dotToken) {
+  const lab = document.createElement('label');
+  const inp = document.createElement('input'); inp.type = 'checkbox'; inp.id = id; inp.checked = checked;
+  inp.addEventListener('change', () => onChange(inp.checked));
+  lab.append(inp);
+  if (dotToken) { const d = document.createElement('span'); d.className = 'dot'; d.dataset.dot = dotToken; lab.append(d); }
+  lab.append(text); parent.append(lab);
+}
+const fScope = document.getElementById('f-scope'), fGroup = document.getElementById('f-group'), fEdge = document.getElementById('f-edge');
+checkbox(fScope, 'fs-sem', 'семестр', true, v => { state.scope['семестр'] = v; refresh(); });
+checkbox(fScope, 'fs-prod', 'продукт', true, v => { state.scope['продукт'] = v; refresh(); });
+GROUPS.forEach(g => checkbox(fGroup, 'fg-' + g, `${g}: ${GROUP_NAMES[g]}`, true, v => { state.group[g] = v; refresh(); }, '--g-' + g.toLowerCase()));
+checkbox(fEdge, 'fe-riskfr', 'риск → требование', true, v => { state.edge.riskfr = v; refresh(); });
+checkbox(fEdge, 'fe-frstep', 'требование → шаг', true, v => { state.edge.frstep = v; refresh(); });
+checkbox(fEdge, 'fe-frfr', 'связи между требованиями', true, v => { state.edge.frfr = v; refresh(); });
+
+function visibleNode(n) {
+  if (n.kind !== 'fr') return true;
+  return state.scope[n.data.scope] && state.group[groupOf(n.id)];
+}
+
+// ---------- подсветка ----------
+function neighbourhood(id) {
+  const n = nodes.get(id), set = new Set([id]);
+  for (const m of adj.get(id) || []) set.add(m);
+  if (n.kind === 'risk') {           // риск → требования → их шаги
+    for (const f of [...set]) if (nodes.get(f).kind === 'fr') nodes.get(f).data.steps.forEach(s => set.add(s));
+  } else if (n.kind === 'step') {    // шаг → требования → их риски
+    for (const f of [...set]) if (nodes.get(f).kind === 'fr') for (const m of adj.get(f)) if (nodes.get(m).kind === 'risk') set.add(m);
+  }
+  return set;
+}
+function refresh() { if (state.mode === 'links') refreshLinks(); else refreshProcess(); }
+function linkHood(id) {           // требование и его связи до заданной глубины
+  const depth = new Map([[id, 0]]);
+  let frontier = [id];
+  for (let d = 1; d <= state.depth; d++) {
+    const next = [];
+    for (const x of frontier) for (const y of frAdj.get(x)) if (!depth.has(y)) { depth.set(y, d); next.push(y); }
+    frontier = next;
+  }
+  state.depthOf = depth;
+  return new Set(depth.keys());
+}
+function refreshLinks() {
+  const { set, focus } = state;
+  for (const n of linkNodes.values()) {
+    const vis = visibleNode(n);
+    n.mesh.visible = vis;
+    const on = !set || set.has(n.id), far = set && state.depthOf.get(n.id) === 2;
+    n.mesh.material.opacity = n.base * (on ? (far ? 0.6 : 1) : 0.08);
+    n.label.visible = Boolean(vis && (state.labelsAll || (set && set.has(n.id))));
+    n.label.element.style.opacity = on ? 1 : 0.35;
+  }
+  for (const e of linkEdges) {
+    const vis = linkNodes.get(e.a).mesh.visible && linkNodes.get(e.b).mesh.visible;
+    e.line.visible = vis;
+    if (!vis) continue;
+    e.line.material.opacity = !set ? e.base : (e.a === focus || e.b === focus) ? 1 : (set.has(e.a) && set.has(e.b)) ? 0.5 : 0.03;
+  }
+}
+function refreshProcess() {
+  const { set, focus } = state;
+  for (const n of nodes.values()) {
+    const vis = visibleNode(n);
+    n.mesh.visible = vis;
+    const on = !set || set.has(n.id);
+    n.mesh.material.opacity = n.base * (on ? 1 : 0.1);
+    if (n.outline) n.outline.material.opacity = on ? 1 : 0.15;
+    const showLabel = n.kind === 'step' || state.labelsAll || (set && set.has(n.id));
+    n.label.visible = Boolean(vis && showLabel);
+    n.label.element.style.opacity = on ? 1 : 0.35;
+  }
+  for (const e of edges) {
+    const vis = state.edge[e.type] && nodes.get(e.a).mesh.visible && nodes.get(e.b).mesh.visible;
+    e.line.visible = vis;
+    if (!vis) continue;
+    let o = e.base;
+    if (set) {
+      const incident = e.a === focus || e.b === focus;
+      const chain = e.type !== 'frfr' && set.has(e.a) && set.has(e.b);
+      o = incident || chain ? Math.min(1, e.base * 2.6) : 0.03;
+    }
+    e.line.material.opacity = o;
+  }
+}
+function select(id, { fly = false } = {}) {
+  stopPlay();
+  if (id && state.mode === 'links' && !linkNodes.has(id) && nodes.has(id)) setMode('process');
+  const pool = state.mode === 'links' ? linkNodes : nodes;
+  if (!id || !pool.has(id)) { state.focus = null; state.set = null; refresh(); renderOverview(); return; }
+  state.focus = id; state.set = state.mode === 'links' ? linkHood(id) : neighbourhood(id);
+  refresh(); renderDetails(id);
+  if (fly) flyTarget(pool.get(id).mesh.position);
+}
+
+// ---------- панель ----------
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+function chips(ids) {
+  if (!ids.length) return '<p class="muted">нет</p>';
+  return '<div class="chips">' + ids.map(id => {
+    const t = frById.get(id)?.title || riskById.get(id)?.title || stepById.get(id)?.name || '';
+    return `<button class="chip" data-go="${esc(id)}">${esc(shortId(id))}<span class="t">${esc(t)}</span></button>`;
+  }).join('') + '</div>';
+}
+function section(title, body) { return `<section><h3>${esc(title)}</h3>${body}</section>`; }
+function renderLinksOverview() {
+  const hubs = [...linkNodes.values()].sort((a, b) => b.deg - a.deg || a.id.localeCompare(b.id)).slice(0, 8).map(n => n.id);
+  const lonely = [...linkNodes.values()].filter(n => n.deg === 0).map(n => n.id);
+  panel.innerHTML = `
+    <h2>Связи требований</h2>
+    <p>Шар это требование, линия это связь из поля «Связи» в functional.md. Связанные требования
+    притягиваются, поэтому группы собираются в облака, а связи между группами идут через пустоту.
+    Чем крупнее шар, тем больше у требования связей.</p>
+    <p>Нажмите на требование: подсветятся те, что нужно проверить при его правке (functional.md,
+    раздел 5). «Глубина 2» добавляет связи связей.</p>
+    <div class="stats">
+      <div><b>${DATA.fr.length}</b><span>требований</span></div>
+      <div><b>${frPairs.length}</b><span>связей</span></div>
+      <div><b>${lonely.length}</b><span>без связей</span></div>
+    </div>
+    ${section('Больше всего связей', chips(hubs))}
+    ${section('Без связей', chips(lonely))}`;
+  applyTheme();
+}
+function impactSection(id) {
+  const at = d => [...state.depthOf].filter(([, k]) => k === d).map(([x]) => x);
+  const d1 = at(1), d2 = at(2);
+  return section(`Задевает правка: прямые связи (${d1.length})`, chips(d1))
+    + (state.depth === 2 ? section(`Через одно требование (${d2.length})`, chips(d2)) : '');
+}
+function renderOverview() {
+  if (state.mode === 'links') return renderLinksOverview();
+  const sem = DATA.fr.filter(f => f.scope === 'семестр').length;
+  panel.innerHTML = `
+    <h2>Как читать схему</h2>
+    <p>Внизу шаги работы программы: S1–S3 выполняются при запуске, S4–S9 на каждом событии сети.
+    Над каждым шагом стоят требования, которые на нём работают. Выше стоят риски, каждый над
+    требованиями, которые его закрывают.</p>
+    <p>Нажмите на шаг, требование или риск, чтобы увидеть его цепочку связей. «Проиграть цикл»
+    проводит одно событие через шаги S4–S9.</p>
+    <div class="stats">
+      <div><b>${DATA.fr.length}</b><span>требований, ${sem} в семестре</span></div>
+      <div><b>${DATA.risks.length}</b><span>рисков</span></div>
+      <div><b>${FRFR_COUNT}</b><span>связей между требованиями</span></div>
+    </div>
+    ${section('Шаги процесса', chips(DATA.steps.map(s => s.id)))}
+    <p class="note">Собрано из ${esc(DATA.sources)}. Схема производна от текста: при расхождении прав functional.md.</p>`;
+}
+function renderDetails(id) {
+  const n = nodes.get(id);
+  if (n.kind === 'fr') {
+    const f = n.data;
+    const risks = [...adj.get(id)].filter(m => nodes.get(m).kind === 'risk');
+    const steps = f.steps.map((s, k) => `${s} ${stepById.get(s).name}${k ? ' (второй шаг)' : ''}`).join('; ');
+    panel.innerHTML = `
+      <h2><code>${esc(f.id)}</code>${esc(f.title)}</h2>
+      <div class="badges">
+        <span class="badge"><span class="dot" data-dot="--g-${groupOf(id).toLowerCase()}"></span>${esc(groupOf(id))}: ${esc(GROUP_NAMES[groupOf(id)])}</span>
+        <span class="badge">объём: ${esc(f.scope)}</span>
+        <span class="badge">приоритет ${f.priority}</span>
+        <span class="badge">оценка ${esc(f.estimate)}</span>
+      </div>
+      ${state.mode === 'links' ? impactSection(id) : ''}
+      ${section('Формулировка', `<p class="text">${esc(f.text)}</p>`)}
+      ${section('Шаг процесса', `<p>${esc(steps)}</p>`)}
+      ${section('Реализуемость', `<p>${esc(f.feasibility)}</p>`)}
+      ${section('Проверка', `<p>${esc(f.check)}</p>`)}
+      ${section('Закрывает риски', chips(risks))}
+      ${section('Связанные требования', chips(f.links.filter(x => frById.has(x))))}`;
+  } else if (n.kind === 'risk') {
+    const r = n.data;
+    const measures = r.kind === 'проект' && !r.fr.length ? `<p>${esc(r.sem_text || 'нет')}</p>` : chips(r.fr);
+    panel.innerHTML = `
+      <h2><code>${esc(r.id)}</code>${esc(r.title)}</h2>
+      <div class="badges">
+        <span class="badge">${esc(r.kind)}</span>
+        <span class="badge">вероятность ${r.p} × ущерб ${r.d} = ${r.score}</span>
+        <span class="badge"><span class="dot" data-dot="${ZONE_TOKEN[r.zone]}"></span>зона: ${esc(r.zone)}</span>
+      </div>
+      ${section('Меры в семестре', measures)}
+      ${section('Меры в продукте', chips(r.frp))}
+      ${section('Шаги, на которых работают меры', chips([...state.set].filter(x => nodes.get(x).kind === 'step')))}
+      <p class="note">Описание риска и обоснование оценок: risks.md.</p>`;
+  } else {
+    const s = n.data;
+    const risks = [...state.set].filter(x => nodes.get(x).kind === 'risk');
+    panel.innerHTML = `
+      <h2><code>${esc(s.id)}</code>${esc(s.name)}</h2>
+      <p>${esc(s.what)}</p>
+      ${section('Требования шага', chips(s.fr))}
+      ${section('Работают и здесь', chips(s.also))}
+      ${section('Риски, которые закрывают эти требования', chips(risks))}`;
+  }
+  applyTheme();
+}
+panel.addEventListener('click', e => {
+  const b = e.target.closest('[data-go]');
+  if (b) select(b.dataset.go, { fly: true });
+});
+
+// ---------- поиск ----------
+const dl = document.getElementById('ids');
+for (const n of nodes.values()) {
+  const o = document.createElement('option');
+  o.value = n.id; o.label = n.data.title || n.data.name; dl.append(o);
+}
+const search = document.getElementById('search');
+search.addEventListener('change', () => {
+  const q = search.value.trim().toUpperCase();
+  const hit = [q, 'FR-' + q].find(x => nodes.has(x));
+  if (hit) select(hit, { fly: true });
+});
+
+// ---------- камера и виды ----------
+const bbox = new THREE.Box3();
+for (const p of pos.values()) bbox.expandByPoint(p);
+bbox.expandByPoint(new THREE.Vector3(minX - 2, Y_STEP, 0));  // подписи слоёв слева
+bbox.expandByScalar(4);
+const center = bbox.getCenter(new THREE.Vector3()), size = bbox.getSize(new THREE.Vector3());
+let tween = null;
+function viewPose(view) {
+  const aspect = camera.aspect, t = f => Math.tan(THREE.MathUtils.degToRad(f / 2));
+  if (view === 'side') {
+    const fov = 22, d = Math.max(size.y / 2 / t(fov), size.x / 2 / (t(fov) * aspect)) * 1.05 + size.z / 2;
+    return { fov, target: center.clone(), position: center.clone().add(new THREE.Vector3(0, 0, d)) };
+  }
+  if (view === 'top') {
+    const fov = 22, d = Math.max(size.z / 2 / t(fov), size.x / 2 / (t(fov) * aspect)) * 1.05 + size.y / 2;
+    return { fov, target: center.clone(), position: center.clone().add(new THREE.Vector3(0, d, 0.01)) };
+  }
+  const fov = 38, d = Math.max(size.x / 2 / (t(fov) * aspect), size.y / 2 / t(fov)) * 1.35;
+  return { fov, target: center.clone(), position: center.clone().add(new THREE.Vector3(0.42, 0.5, 0.76).normalize().multiplyScalar(d)) };
+}
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function animateCamera(to, ms = 700) {
+  const from = { position: camera.position.clone(), target: controls.target.clone(), fov: camera.fov };
+  if (reduced) ms = 0;
+  tween = { from, to, t0: performance.now(), ms };
+}
+function setView(view, instant) {
+  document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.view === view)));
+  const pose = viewPose(view);
+  if (instant) { camera.position.copy(pose.position); controls.target.copy(pose.target); camera.fov = pose.fov; camera.updateProjectionMatrix(); }
+  else animateCamera(pose);
+  state.view = view;
+}
+function flyTarget(p) {
+  animateCamera({ position: camera.position.clone().add(p.clone().sub(controls.target)), target: p.clone(), fov: camera.fov }, 600);
+}
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+document.getElementById('labels-all').addEventListener('click', e => {
+  state.labelsAll = !state.labelsAll; e.currentTarget.setAttribute('aria-pressed', String(state.labelsAll)); refresh();
+});
+
+// ---------- проигрывание цикла ----------
+const playBtn = document.getElementById('play');
+let play = null;
+function stopPlay() {
+  if (!play) return;
+  clearTimeout(play.timer); play = null; pulse.visible = false;
+  playBtn.setAttribute('aria-pressed', 'false'); playBtn.textContent = '▶ Проиграть цикл';
+}
+function playStep(k) {
+  const id = CYCLE[k % CYCLE.length], prev = CYCLE[(k - 1 + CYCLE.length) % CYCLE.length];
+  state.focus = id; state.set = neighbourhood(id); refresh(); renderDetails(id);
+  play.curve = k === 0 && !play.started ? null : flowCurves.get(prev + '>' + id);
+  play.t0 = performance.now(); play.started = true;
+  play.timer = setTimeout(() => playStep(k + 1), 2400);
+}
+playBtn.addEventListener('click', () => {
+  if (play) { stopPlay(); select(null); return; }
+  play = { started: false };
+  playBtn.setAttribute('aria-pressed', 'true'); playBtn.textContent = '❚❚ Пауза';
+  playStep(0);
+});
+
+// ---------- режимы ----------
+function linksPose() {
+  const b = new THREE.Box3();
+  lp.forEach(v => b.expandByPoint(v));
+  b.expandByScalar(3);
+  const c = b.getCenter(new THREE.Vector3()), sz = b.getSize(new THREE.Vector3());
+  const fov = 40, t = Math.tan(THREE.MathUtils.degToRad(fov / 2));
+  const d = Math.max(sz.x / 2 / (t * camera.aspect), sz.y / 2 / t) * 1.5;
+  return { fov, target: c, position: c.clone().add(new THREE.Vector3(0.35, 0.3, 0.9).normalize().multiplyScalar(d)) };
+}
+function setMode(mode) {
+  stopPlay();
+  state.mode = mode; state.focus = null; state.set = null;
+  document.querySelectorAll('[data-mode]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === mode)));
+  const links = mode === 'links';
+  processGroup.visible = !links; linksGroup.visible = links;
+  document.getElementById('views').hidden = links;
+  document.getElementById('depth').hidden = !links;
+  document.getElementById('f-edge').hidden = links;
+  document.getElementById('legend-process').hidden = links;
+  document.getElementById('legend-links').hidden = !links;
+  playBtn.hidden = links;
+  if (links) animateCamera(linksPose()); else setView(state.view);
+  refresh(); renderOverview();
+}
+document.querySelectorAll('[data-mode]').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+document.querySelectorAll('[data-depth]').forEach(b => b.addEventListener('click', () => {
+  state.depth = Number(b.dataset.depth);
+  document.querySelectorAll('[data-depth]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  if (state.focus) select(state.focus); else refresh();
+}));
+
+// ---------- мышь ----------
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), tip = document.getElementById('tip');
+function pick(ev) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  const pool = [...(state.mode === 'links' ? linkNodes : nodes).values()].filter(n => n.mesh.visible);
+  const hit = ray.intersectObjects(pool.map(n => n.mesh), false)[0];
+  return hit ? pool.find(n => n.mesh === hit.object) : null;
+}
+renderer.domElement.addEventListener('pointermove', ev => {
+  const n = pick(ev);
+  renderer.domElement.style.cursor = n ? 'pointer' : '';
+  if (!n) { tip.hidden = true; return; }
+  const d = n.data, r = stage.getBoundingClientRect();
+  const sub = n.kind === 'fr' ? `${d.scope}, приоритет ${d.priority}, связей ${frAdj.get(n.id).size}` : n.kind === 'risk' ? `${d.kind}, В×У = ${d.score}` : d.what;
+  tip.innerHTML = `<code>${esc(n.id)}</code> ${esc(d.title || d.name)}<div class="sub">${esc(sub)}</div>`;
+  tip.hidden = false;
+  tip.style.left = Math.min(ev.clientX - r.left + 14, r.width - 310) + 'px';
+  tip.style.top = (ev.clientY - r.top + 14) + 'px';
+});
+renderer.domElement.addEventListener('pointerleave', () => { tip.hidden = true; });
+let down = null;
+renderer.domElement.addEventListener('pointerdown', ev => { down = [ev.clientX, ev.clientY]; });
+renderer.domElement.addEventListener('pointerup', ev => {
+  if (!down || Math.hypot(ev.clientX - down[0], ev.clientY - down[1]) > 5) return;
+  const n = pick(ev);
+  select(n ? n.id : null);
+});
+addEventListener('keydown', ev => { if (ev.key === 'Escape') select(null); });
+
+// ---------- размер и цикл отрисовки ----------
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h); labelRenderer.setSize(w, h);
+  camera.aspect = w / h; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage);
+resize();
+const ease = x => 1 - Math.pow(1 - x, 3);
+renderer.setAnimationLoop(now => {
+  if (tween) {
+    const k = tween.ms ? Math.min(1, (now - tween.t0) / tween.ms) : 1, e = ease(k);
+    camera.position.lerpVectors(tween.from.position, tween.to.position, e);
+    controls.target.lerpVectors(tween.from.target, tween.to.target, e);
+    camera.fov = tween.from.fov + (tween.to.fov - tween.from.fov) * e; camera.updateProjectionMatrix();
+    if (k >= 1) tween = null;
+  }
+  if (play && play.curve && !reduced) {
+    const k = Math.min(1, (now - play.t0) / 700);
+    pulse.visible = k < 1; pulse.position.copy(play.curve.getPoint(ease(k)));
+  } else pulse.visible = false;
+  controls.update();
+  renderer.render(scene, camera);
+  labelRenderer.render(scene, camera);
+});
+
+// ---------- старт ----------
+applyTheme();
+setView('3d', true);
+refresh();
+renderOverview();
+const token = decodeURIComponent(location.hash.slice(1));
+if (['3d', 'side', 'top'].includes(token)) setView(token, true);
+else if (token === 'play') playBtn.click();
+else if (token === 'links') setMode('links');
+else if (token.startsWith('links-')) { setMode('links'); select(token.slice(6)); }
+else if (nodes.has(token)) select(token);
+</script>
+</body>
+</html>
