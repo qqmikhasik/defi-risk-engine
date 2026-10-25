@@ -33,7 +33,7 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release   # конфигурация, с�
 cmake --build build --parallel                    # сборка
 ctest --test-dir build --output-on-failure        # тесты
 ./build/bench/morpho_position_bench               # бенчмарк
-doxygen Doxyfile                                  # документация в build/docs/html
+doxygen Doxyfile                                  # документация в build/docs
 ```
 
 Эталонная среда задана в `ci.yml`: раннер `ubuntu-24.04`, его g++ и CMake, Doxygen из
