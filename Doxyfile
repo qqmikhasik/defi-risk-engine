@@ -9,4 +9,6 @@ OUTPUT_LANGUAGE        = Russian
 INPUT                  = README.md src
 USE_MDFILE_AS_MAINPAGE = README.md
 GENERATE_LATEX         = NO
+# Графы рисует Graphviz (dot), его нет среди зависимостей проекта.
+HAVE_DOT               = NO
 QUIET                  = YES
