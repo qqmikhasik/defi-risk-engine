@@ -1,0 +1,54 @@
+# На каждый push: сборка, тесты и бенчмарк. На push в main ещё документация Doxygen
+# на GitHub Pages. Actions закреплены по хешу коммита, версия указана в комментарии.
+name: CI
+
+on: push
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Сборка, тесты, бенчмарк
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Конфигурация
+        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
+      - name: Сборка
+        run: cmake --build build --parallel
+      - name: Тесты
+        run: ctest --test-dir build --output-on-failure
+      - name: Бенчмарк
+        run: ./build/bench/morpho_position_bench
+
+  docs:
+    name: Документация
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Установка Doxygen
+        run: sudo apt-get update && sudo apt-get install --yes --no-install-recommends doxygen
+      - name: Сборка документации
+        run: doxygen Doxyfile
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9  # v5.0.0
+        with:
+          path: build/docs/html
+      - id: deploy
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346  # v5.0.1

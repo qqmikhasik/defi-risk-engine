@@ -1,0 +1,10 @@
+# Документация из комментариев в src/ и README.md. Указаны только отличия от
+# умолчаний Doxygen; полный список параметров выводит `doxygen -g`.
+PROJECT_NAME           = defi-risk-engine
+PROJECT_BRIEF          = "Риск ликвидации кредитной позиции с плечом в DeFi"
+OUTPUT_DIRECTORY       = build/docs
+OUTPUT_LANGUAGE        = Russian
+INPUT                  = README.md src
+USE_MDFILE_AS_MAINPAGE = README.md
+GENERATE_LATEX         = NO
+QUIET                  = YES
